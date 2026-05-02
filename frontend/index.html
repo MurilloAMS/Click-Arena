@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Click Arena</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div id="menuLateral" class="menu-lateral hidden">
+
+  <div class="menu-header">
+    <h2>Menu</h2>
+    <span onclick="fecharMenu()">✕</span>
+  </div>
+
+  <div class="menu-item" onclick="abrirPerfil()">👤 Perfil</div>
+  <div class="menu-item" onclick="abrirWallet()">💰 Carteira</div>
+  <div class="menu-item" onclick="abrirConfiguracoes()">⚙️ Configurações</div>
+  <div class="menu-item" onclick="abrirDiretrizes()">📜 Diretrizes</div>
+  <div class="menu-item" onclick="abrirReclamacoes()">🚨 Reclamações</div>
+
+</div>
+
+  <!-- TOPO -->
+  <div class="topo">
+    <div class="menu" onclick="abrirMenu()">☰</div>
+    <div class="logo">
+   Cl<span class="i-custom">í</span>ck
+   </div>
+    <div class="saldo" id="saldo" onclick="abrirWallet()">R$ 0.00</div>
+  </div>
+
+  <!-- TIMER -->
+  <div class="timer-wrapper">
+    <div class="timer-box">
+
+      <div class="timer-glow"></div>
+
+      <div class="timer-label">PRÓXIMA PARTIDA</div>
+      
+      <div class="timer-circle">
+        <div class="timer-ring"></div>
+        <div class="timer-text" id="timer">00:30</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RANKING -->
+ <div class="ranking" id="ranking">
+  <h3>🏆 Top jogadores hoje</h3>
+
+  <div class="rank-card gold">
+    <div class="rank-left">
+      <div class="rank-icon">🥇</div>
+      <div>
+        <div class="rank-name">Neymar Jr.</div>
+        <div class="rank-info">12 vitórias • 3200 cliques</div>
+      </div>
+    </div>
+    <div class="rank-money">R$ 1542</div>
+  </div>
+
+  <div class="rank-card silver">
+    <div class="rank-left">
+      <div class="rank-icon">🥈</div>
+      <div>
+        <div class="rank-name">Estevão Jardim</div>
+        <div class="rank-info">10 vitórias • 2980 cliques</div>
+      </div>
+    </div>
+    <div class="rank-money">R$ 1320</div>
+  </div>
+
+  <div class="rank-card bronze">
+    <div class="rank-left">
+      <div class="rank-icon">🥉</div>
+      <div>
+        <div class="rank-name">Caroline Maria</div>
+        <div class="rank-info">8 vitórias • 2750 cliques</div>
+      </div>
+    </div>
+    <div class="rank-money">R$ 1105</div>
+  </div>
+
+</div>
+
+<div id="arena" class="arena hidden">
+
+  <div class="arena-topo">Click</div>
+
+  <div class="arena-content">
+
+    <!-- RANKING -->
+    <div class="arena-ranking" id="arenaRanking"></div>
+
+    <!-- BOTÃO -->
+    <div class="arena-center">
+      <button id="clickBtn">CLICK</button>
+      <div id="clickArea"></div>
+    </div>
+
+  </div>
+
+  <div class="arena-timer" id="arenaTimer">30s</div>
+
+</div>
+
+  <!-- SALAS -->
+  <div class="salas" id="salas"></div>
+
+ <div id="resultado" class="resultado hidden">
+  <canvas id="confete"></canvas>
+
+  <div class="resultado-box">
+    <h1 id="resultadoTitulo"></h1>
+    <p id="resultadoTexto"></p>
+    <button onclick="fecharResultado()">Jogar novamente</button>
+  </div>
+</div>
+
+<div id="wallet" class="wallet hidden">
+  <div class="wallet-box">
+
+    <div class="wallet-header">
+      <h2>Carteira</h2>
+      <span onclick="fecharWallet()">✕</span>
+    </div>
+
+    <div class="wallet-balance">
+      <span>Saldo disponível</span>
+      <h1 id="walletSaldo">R$ 0.00</h1>
+    </div>
+
+    <div class="wallet-actions">
+      <button onclick="depositar()" class="btn-depositar">Depositar</button>
+      <button onclick="sacar()" class="btn-sacar">Sacar</button>
+    </div>
+
+    <!-- 🔥 MODAL DE DEPÓSITO -->
+    <div id="modalDeposito" class="hidden">
+      <div class="deposito-box">
+
+        <h3>💰 Depositar via PIX</h3>
+
+        <input id="inputValor" type="number" placeholder="Digite o valor">
+
+        <button onclick="confirmarDeposito()">Gerar PIX</button>
+        <button onclick="fecharDeposito()">Cancelar</button>
+
+        <div id="pixContainer"></div>
+
+      </div>
+    </div>
+
+    <button onclick="verHistorico()" class="btn-historico">
+      📊 Histórico de transações
+    </button>
+
+    <div id="historicoArea" class="hidden"></div>
+
+    <div class="wallet-card">
+      <span>Conta vinculada</span>
+      <p>•••• •••• •••• 4589</p>
+    </div>
+
+  </div>
+</div>
+
+<div id="telaMenu" class="tela hidden"></div>
+
+  <script src="script.js"></script>
+
+</body>
+</html>
