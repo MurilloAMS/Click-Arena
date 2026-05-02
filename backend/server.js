@@ -5,6 +5,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+let jogadores = {};
+
 const client = new MercadoPagoConfig({
   accessToken: "siUM0YNkFaqAknXaIHc39kbgW5dXf11R"
 });
@@ -135,9 +137,57 @@ app.get("/saldo/:userId", (req, res) => {
 
   res.json({ saldo: usuarios[userId].saldo });
 });
+
+app.post("/click", (req, res) => {
+  const { userId, timestamp } = req.body;
+
+  if (!jogadores[userId]) {
+    jogadores[userId] = {
+      cliques: 0,
+      ultimoClique: 0,
+      historico: []
+    };
+  }
+
+  let jogador = jogadores[userId];
+
+  // 🚫 bloqueia clique muito rápido
+  if (timestamp - jogador.ultimoClique < 80) {
+    return res.json({ ok: false });
+  }
+
+  jogador.ultimoClique = timestamp;
+  jogador.cliques++;
+
+  // 🧠 histórico anti-bot
+  jogador.historico.push(timestamp);
+
+  if (jogador.historico.length > 10) {
+    jogador.historico.shift();
+  }
+
+  // 🚨 detectar padrão robótico
+  if (jogador.historico.length === 10) {
+    let intervalos = [];
+
+    for (let i = 1; i < jogador.historico.length; i++) {
+      intervalos.push(jogador.historico[i] - jogador.historico[i - 1]);
+    }
+
+    let variacao = Math.max(...intervalos) - Math.min(...intervalos);
+
+    if (variacao < 10) {
+      console.log("🚨 BOT DETECTADO:", userId);
+    }
+  }
+
+  res.json({ ok: true, cliques: jogador.cliques });
+});
 // =============================
 // 🚀 INICIAR SERVIDOR
 // =============================
-app.listen(3000, () => {
-  console.log("🔥 Servidor rodando na porta 3000");
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log("Servidor rodando na porta " + PORT);
 });
