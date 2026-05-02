@@ -1,3 +1,7 @@
+app.get("/teste", (req, res) => {
+  res.send("FUNCIONANDO");
+});
+
 const express = require("express");
 const cors = require("cors");
 const { MercadoPagoConfig, Payment } = require("mercadopago");
