@@ -186,10 +186,12 @@ app.post("/click", (req, res) => {
 
 const path = require("path");
 
-app.use(express.static(path.join(__dirname, "frontend")));
+// Servir arquivos estáticos
+app.use(express.static(path.join(__dirname, "../frontend")));
 
-app.use((req, res) => {
-  res.sendFile(path.join(__dirname, "frontend", "index.html"));
+// Rota principal
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "../frontend/index.html"));
 });
 
 // =============================
