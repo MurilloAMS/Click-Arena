@@ -5,7 +5,6 @@ const path = require("path");
 const { MercadoPagoConfig, Payment } = require("mercadopago");
 
 const app = express();
-const frontendPath = process.cwd();
 
 app.use(cors());
 app.use(express.json());
@@ -41,7 +40,7 @@ app.post("/criar-pagamento", async (req, res) => {
 
         external_reference: userId,
 
-        notification_url: "https://clique-arena.up.railway.app/webhook"
+        notification_url: "https://click-arena-ypsh.onrender.com/"
       }
     });
 
