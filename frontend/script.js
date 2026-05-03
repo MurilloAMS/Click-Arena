@@ -449,7 +449,7 @@ btn.addEventListener("click", () => {
     
     const agora = Date.now();
 
-fetch("http://localhost:3000/click", {
+fetch(`${window.location.origin}/click`, {
   method: "POST",
   headers: {
     "Content-Type": "application/json"
@@ -614,16 +614,16 @@ async function confirmarDeposito() {
   container.innerHTML = "<p>⏳ Gerando PIX...</p>";
 
   try {
-    const res = await fetch("http://localhost:3000/criar-pagamento", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        valor: Number(valor),
-        userId: "user1"
-      })
-    });
+   const res = await fetch(`${window.location.origin}/criar-pagamento`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    valor: Number(valor),
+    userId: "user1"
+  })
+});
 
     if (!res.ok) {
       const erro = await res.text();
@@ -676,18 +676,22 @@ function sacar() {
 
   if (!valor || isNaN(valor)) return;
 
-  fetch("http://localhost:3000/sacar", {
+  fetch(`${window.location.origin}/sacar`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      valor,
+      valor: Number(valor),
       userId: "user1"
     })
   })
   .then(res => res.text())
-  .then(msg => alert(msg));
+  .then(msg => alert(msg))
+  .catch(err => {
+    console.log("Erro:", err);
+    alert("Erro ao conectar com servidor");
+  });
 }
 
 function mostrarPix(data) {
@@ -751,7 +755,7 @@ function animarDinheiro(valor) {
 
 async function buscarSaldo() {
   try {
-    const res = await fetch("http://localhost:3000/saldo/user1");
+    const res = await fetch(`${window.location.origin}/saldo/user1`)
 
     if (!res.ok) {
       console.log("Erro ao buscar saldo");
@@ -779,7 +783,7 @@ setInterval(buscarSaldo, 2000);
 buscarSaldo();
 
 async function verHistorico() {
-  const res = await fetch("http://localhost:3000/historico/user1");
+  const res = await fetch(`${window.location.origin}/historico/user1`)
   const dados = await res.json();
 
   const area = document.getElementById("historicoArea");
