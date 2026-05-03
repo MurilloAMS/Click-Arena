@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
@@ -9,7 +10,7 @@ app.use(cors());
 app.use(express.json());
 
 const client = new MercadoPagoConfig({
-  accessToken: "siUM0YNkFaqAknXaIHc39kbgW5dXf11R"
+  accessToken: process.env.MP_ACCESS_TOKEN
 });
 
 const payment = new Payment(client);
@@ -75,6 +76,11 @@ app.post("/webhook", async (req, res) => {
 
         // 👉 AQUI VOCÊ ATUALIZA O SALDO DO USUÁRIO
       }
+      if (!usuarios[userId]) {
+  usuarios[userId] = { saldo: 0 };
+}
+
+usuarios[userId].saldo += valor;
     }
 
     res.sendStatus(200);
