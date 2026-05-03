@@ -187,7 +187,7 @@ app.post("/click", (req, res) => {
 const path = require("path");
 
 // Caminho absoluto garantido
-const frontendPath = path.join(__dirname, "frontend");
+const frontendPath = path.join(__dirname, "../frontend");
 
 // Servir arquivos estáticos
 app.use(express.static(frontendPath));
