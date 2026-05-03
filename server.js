@@ -191,16 +191,13 @@ app.post("/click", (req, res) => {
 });
 
 // 🔥 caminho correto para frontend
-const frontendPath = path.join(__dirname, "..", "frontend");
-
-console.log("📁 FRONTEND PATH:", frontendPath);
+const frontendPath = path.join(__dirname, "frontend");
 
 app.use(express.static(frontendPath));
 
 app.get("/", (req, res) => {
   res.sendFile(path.join(frontendPath, "index.html"));
 });
-
 // 🔥 teste
 app.get("/ping", (req, res) => {
   res.send("pong");
