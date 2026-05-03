@@ -1,11 +1,12 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 const { MercadoPagoConfig, Payment } = require("mercadopago");
+
 const app = express();
+
 app.use(cors());
 app.use(express.json());
-
-let jogadores = {};
 
 const client = new MercadoPagoConfig({
   accessToken: "siUM0YNkFaqAknXaIHc39kbgW5dXf11R"
@@ -13,11 +14,10 @@ const client = new MercadoPagoConfig({
 
 const payment = new Payment(client);
 
-// 💾 "banco fake"
+let jogadores = {};
 let usuarios = {};
 let pagamentosProcessados = new Set();
 let historico = {};
-
 let saques = [];
 
 // =============================
@@ -183,11 +183,6 @@ app.post("/click", (req, res) => {
 
   res.json({ ok: true, cliques: jogador.cliques });
 });
-
-const express = require("express");
-const path = require("path");
-
-const app = express();
 
 // 🔥 caminho correto para frontend
 const frontendPath = path.join(__dirname, "../frontend");
