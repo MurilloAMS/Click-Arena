@@ -191,7 +191,7 @@ app.post("/click", (req, res) => {
 });
 
 // 🔥 caminho correto para frontend
-const frontendPath = path.resolve(process.cwd(), "frontend");
+const frontendPath = path.join(__dirname, "..", "frontend");
 
 console.log("📁 FRONTEND PATH:", frontendPath);
 
