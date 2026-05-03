@@ -189,16 +189,9 @@ app.post("/click", (req, res) => {
   res.json({ ok: true, cliques: jogador.cliques });
 });
 
-// 🔥 caminho correto para frontend
-
-app.use(express.static(frontendPath));
-
+// 🔥 ROTA PRINCIPAL
 app.get("/", (req, res) => {
-  res.sendFile(path.join(frontendPath, "index.html"));
-});
-// 🔥 teste
-app.get("/ping", (req, res) => {
-  res.send("pong");
+  res.sendFile(path.join(__dirname, "index.html"));
 });
 
 // 🔥 porta (Railway usa PORT automático)
