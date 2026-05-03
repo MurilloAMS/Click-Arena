@@ -9,11 +9,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const client = new MercadoPagoConfig({
-  accessToken: process.env.MP_ACCESS_TOKEN
-});
+//const client = new MercadoPagoConfig({
+  //accessToken: process.env.MP_ACCESS_TOKEN
+//});
 
-const payment = new Payment(client);
+//const payment = new Payment(client);
 
 let jogadores = {};
 let usuarios = {};
