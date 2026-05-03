@@ -9,11 +9,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-//const client = new MercadoPagoConfig({
-  //accessToken: process.env.MP_ACCESS_TOKEN
-//});
+const client = new MercadoPagoConfig({
+  accessToken: process.env.MP_ACCESS_TOKEN
+});
 
-//const payment = new Payment(client);
+const payment = new Payment(client);
 
 let jogadores = {};
 let usuarios = {};
@@ -74,13 +74,12 @@ app.post("/webhook", async (req, res) => {
 
         console.log("💰 PAGAMENTO APROVADO:", userId, valor);
 
-        // 👉 AQUI VOCÊ ATUALIZA O SALDO DO USUÁRIO
-      }
-      if (!usuarios[userId]) {
-  usuarios[userId] = { saldo: 0 };
-}
+        if (!usuarios[userId]) {
+          usuarios[userId] = { saldo: 0 };
+        }
 
-usuarios[userId].saldo += valor;
+        usuarios[userId].saldo += valor;
+      }
     }
 
     res.sendStatus(200);
@@ -192,8 +191,6 @@ app.post("/click", (req, res) => {
 
 // 🔥 caminho correto para frontend
 const frontendPath = path.join(__dirname, "frontend");
-
-console.log("Frontend path:", frontendPath);
 
 app.use(express.static(frontendPath));
 
