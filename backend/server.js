@@ -186,12 +186,19 @@ app.post("/click", (req, res) => {
 
 const path = require("path");
 
+// Caminho absoluto garantido
+const frontendPath = path.resolve(__dirname, "../frontend");
+
 // Servir arquivos estáticos
-app.use(express.static(path.join(__dirname, "../frontend")));
+app.use(express.static(frontendPath));
 
 // Rota principal
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "../frontend/index.html"));
+  res.sendFile(path.join(frontendPath, "index.html"));
+});
+
+app.get("/ping", (req, res) => {
+  res.send("pong");
 });
 
 // =============================
