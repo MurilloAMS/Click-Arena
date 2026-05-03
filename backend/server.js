@@ -184,26 +184,28 @@ app.post("/click", (req, res) => {
   res.json({ ok: true, cliques: jogador.cliques });
 });
 
+const express = require("express");
 const path = require("path");
 
-// Caminho absoluto garantido
+const app = express();
+
+// 🔥 caminho correto para frontend
 const frontendPath = path.join(__dirname, "../frontend");
 
-// Servir arquivos estáticos
+// 🔥 serve arquivos (HTML, CSS, JS)
 app.use(express.static(frontendPath));
 
-// Rota principal
+// 🔥 rota principal
 app.get("/", (req, res) => {
   res.sendFile(path.join(frontendPath, "index.html"));
 });
 
+// 🔥 teste
 app.get("/ping", (req, res) => {
   res.send("pong");
 });
 
-// =============================
-// 🚀 INICIAR SERVIDOR
-// =============================
+// 🔥 porta (Railway usa PORT automático)
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
