@@ -98,7 +98,17 @@ function pararSomAmbiente() {
   ambientOsc = null;
 }
 
-let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let audioCtx;
+
+document.addEventListener("click", () => {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+
+  if (audioCtx.state !== "running") {
+    audioCtx.resume();
+  }
+});
 
 
 // 🔊 SOM CLICK
@@ -461,9 +471,11 @@ fetch(`${window.location.origin}/click`, {
 })
 .then(res => res.json())
 .then(data => {
-  if (!data.ok) return; // bloqueado
+  if (!data.ok) return;
+ })
 
-  // 👉 CONTINUA SEU CÓDIGO NORMAL AQUI
+ .catch(err => {
+  console.log("Erro no click:", err);
  });
 
     if (agora - ultimoClique < 300) {
@@ -812,7 +824,6 @@ function fecharHistorico() {
   document.getElementById("modalHistorico").classList.add("hidden");
 }
 
-buscarSaldo();
 atualizarSaldo();
 renderRanking();
 renderSalas();
@@ -839,10 +850,6 @@ function abrirMenu() {
 
 function fecharMenu() {
   document.getElementById("menuLateral").classList.add("hidden");
-}
-
-function abrirPerfil() {
-  alert("Abrir perfil (vamos construir depois)");
 }
 
 function abrirReclamacoes() {
