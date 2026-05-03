@@ -187,12 +187,10 @@ app.post("/click", (req, res) => {
 // 🔥 caminho correto para frontend
 const frontendPath = path.resolve(process.cwd(), "frontend");
 
-console.log("Frontend path:", frontendPath);
+console.log("📁 FRONTEND PATH:", frontendPath);
 
-// 🔥 serve arquivos (HTML, CSS, JS)
 app.use(express.static(frontendPath));
 
-// 🔥 rota principal
 app.get("/", (req, res) => {
   res.sendFile(path.join(frontendPath, "index.html"));
 });
