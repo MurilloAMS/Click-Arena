@@ -5,6 +5,7 @@ const path = require("path");
 const { MercadoPagoConfig, Payment } = require("mercadopago");
 
 const app = express();
+const frontendPath = process.cwd();
 
 app.use(cors());
 app.use(express.json());
@@ -190,7 +191,6 @@ app.post("/click", (req, res) => {
 });
 
 // 🔥 caminho correto para frontend
-const frontendPath = process.cwd();
 
 app.use(express.static(frontendPath));
 
