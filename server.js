@@ -189,8 +189,10 @@ app.post("/click", (req, res) => {
   res.json({ ok: true, cliques: jogador.cliques });
 });
 
-// 🔥 ROTA PRINCIPAL
+app.use(express.static(__dirname));
+
 app.get("/", (req, res) => {
+
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
