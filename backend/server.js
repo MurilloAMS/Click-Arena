@@ -39,7 +39,7 @@ app.post("/criar-pagamento", async (req, res) => {
 
         external_reference: userId,
 
-        notification_url: "https://SEU-SITE.com/webhook"
+        notification_url: "https://clique-arena.up.railway.app/webhook"
       }
     });
 
