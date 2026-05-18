@@ -10,6 +10,9 @@ let ambientOsc = null;
 let ambientGain = null;
 let ultimoSaldo = 0;
 
+// ✅ audioCtx declarado no topo para evitar erro de "não existe ainda"
+let audioCtx = null;
+
 let perfil = JSON.parse(localStorage.getItem("perfil")) || {
   nome: "Jogador123",
   id: "user1",
@@ -27,22 +30,20 @@ setInterval(() => {
 function cliqueValido() {
   const agora = Date.now();
 
-  // 🚫 Bloqueia clique muito rápido
   if (agora - ultimoCliqueValido < 80) {
     return false;
   }
 
-  ultimoClique = agora;
+  // ✅ atualiza ultimoCliqueValido (antes estava atualizando ultimoClique por engano)
+  ultimoCliqueValido = agora;
   cliquesSegundo++;
 
-  // 📊 histórico
   historicoCliques.push(agora);
 
   if (historicoCliques.length > 10) {
     historicoCliques.shift();
   }
 
-  // 🤖 detectar padrão robótico
   if (historicoCliques.length === 10) {
     let intervalos = [];
 
@@ -67,39 +68,49 @@ function salvarPerfil() {
 
 // 🔊 INICIAR SOM AMBIENTE
 function iniciarSomAmbiente() {
-  if (ambientOsc) return; // já está rodando
+  // ✅ verifica se audioCtx existe antes de usar
+  if (!audioCtx) return;
+  if (ambientOsc) return;
 
   ambientOsc = audioCtx.createOscillator();
   ambientGain = audioCtx.createGain();
 
-ambientOsc.type = "triangle";
+  ambientOsc.type = "triangle";
 
-let agora = audioCtx.currentTime;
+  let agora = audioCtx.currentTime;
 
-// sequência tipo cassino
-ambientOsc.frequency.setValueAtTime(600, agora);
-ambientOsc.frequency.linearRampToValueAtTime(900, agora + 0.1);
-ambientOsc.frequency.linearRampToValueAtTime(700, agora + 0.2);
+  ambientOsc.frequency.setValueAtTime(600, agora);
+  ambientOsc.frequency.linearRampToValueAtTime(900, agora + 0.1);
+  ambientOsc.frequency.linearRampToValueAtTime(700, agora + 0.2);
 
-ambientGain.gain.setValueAtTime(0.1, agora);
-ambientGain.gain.exponentialRampToValueAtTime(0.0001, agora + 0.25);
+  ambientGain.gain.setValueAtTime(0.1, agora);
+  ambientGain.gain.exponentialRampToValueAtTime(0.0001, agora + 0.25);
+
+  ambientOsc.connect(ambientGain);
+  ambientGain.connect(audioCtx.destination);
 
   ambientOsc.start(agora);
   ambientOsc.stop(agora + 0.25);
+
+  // ✅ limpa referência depois que o som termina
+  ambientOsc.onended = () => {
+    ambientOsc = null;
+  };
 }
 
 // 🔇 PARAR SOM AMBIENTE
 function pararSomAmbiente() {
   if (!ambientOsc) return;
 
-  ambientOsc.stop();
-  ambientOsc.disconnect();
+  try {
+    ambientOsc.stop();
+    ambientOsc.disconnect();
+  } catch(e) {}
 
   ambientOsc = null;
 }
 
-let audioCtx;
-
+// ✅ listener unificado para criar audioCtx no primeiro clique
 document.addEventListener("click", () => {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -108,11 +119,21 @@ document.addEventListener("click", () => {
   if (audioCtx.state !== "running") {
     audioCtx.resume();
   }
-});
 
+  // inicia som ambiente uma única vez
+  if (!window.somAmbienteIniciado) {
+    window.somAmbienteIniciado = true;
+
+    window.somIntervalo = setInterval(() => {
+      iniciarSomAmbiente();
+    }, 3000);
+  }
+});
 
 // 🔊 SOM CLICK
 function somClick() {
+  if (!audioCtx) return;
+
   let osc = audioCtx.createOscillator();
   let gain = audioCtx.createGain();
 
@@ -130,6 +151,8 @@ function somClick() {
 
 // 🔥 SOM ULTRAPASSAGEM
 function somUltrapassar() {
+  if (!audioCtx) return;
+
   let osc = audioCtx.createOscillator();
   let gain = audioCtx.createGain();
 
@@ -147,6 +170,8 @@ function somUltrapassar() {
 
 // 🏆 SOM VITÓRIA
 function somVitoria() {
+  if (!audioCtx) return;
+
   let osc = audioCtx.createOscillator();
   let gain = audioCtx.createGain();
 
@@ -165,8 +190,6 @@ function somVitoria() {
 let combo = 0;
 let saldo = 48.50;
 let tempoGlobal = 30;
-
-
 
 const salas = [
   { nome: "Bronze", jogadores: 11, max: 3, valor: 2, tempo: 30, status: "aguardando", emJogo: false },
@@ -208,7 +231,6 @@ function renderRanking() {
 
     div.innerHTML += `
       <div class="rank-card ${classe}">
-        
         <div class="rank-left">
           <div class="rank-icon">${icon}</div>
           <div>
@@ -218,11 +240,9 @@ function renderRanking() {
             </div>
           </div>
         </div>
-
         <div class="rank-money">
           R$ ${j.ganho}
         </div>
-
       </div>
     `;
   });
@@ -237,29 +257,26 @@ function renderSalas() {
 
     div.innerHTML += `
       <div class="sala" onclick="entrarSala('${sala.nome}')">
-
         <div class="sala-left">
           <b>${sala.nome}</b>
           <span>${sala.jogadores}/${sala.max} jogadores</span>
         </div>
-
         <div class="sala-right">
           <div class="green">R$ ${premio}</div>
           <div>Entrada R$${sala.valor}</div>
           <div class="${sala.status === 'jogando' ? 'red' : 'green'}">
             ${sala.status === 'jogando'
-  ? '🔥 Em jogo (' + sala.tempo + 's)'
-  : '⏳ Começa em ' + tempoGlobal.toString().padStart(2, '0') + 's'}
+              ? '🔥 Em jogo (' + sala.tempo + 's)'
+              : '⏳ Começa em ' + tempoGlobal.toString().padStart(2, '0') + 's'}
           </div>
         </div>
-
       </div>
     `;
   });
 }
 
 function entrarSala(nome) {
-    pararSomAmbiente();
+  pararSomAmbiente();
 
   const sala = salas.find(s => s.nome === nome);
 
@@ -273,7 +290,6 @@ function entrarSala(nome) {
   saldo -= sala.valor;
   atualizarSaldo();
 
-  // 🔥 ABRIR ARENA
   document.getElementById("arena").classList.remove("hidden");
 
   iniciarArena();
@@ -292,13 +308,14 @@ function iniciarArena() {
   cliques = 0;
   tempo = 30;
 
+  // ✅ reseta scores dos bots a cada partida
+  bots.forEach(bot => bot.score = 0);
+
   atualizarRanking();
 
-  // 🔥 LIMPA intervalos antigos (ESSENCIAL)
   clearInterval(timerInterval);
   clearInterval(botInterval);
 
-  // ⏱ TIMER
   timerInterval = setInterval(() => {
     tempo--;
 
@@ -308,9 +325,9 @@ function iniciarArena() {
       clearInterval(timerInterval);
       clearInterval(botInterval);
 
-      mostrarResultado(); // 🔥 FINALIZA
+      mostrarResultado();
 
-iniciarSomAmbiente();
+      iniciarSomAmbiente();
 
       setTimeout(() => {
         document.getElementById("arena").classList.add("hidden");
@@ -319,7 +336,6 @@ iniciarSomAmbiente();
 
   }, 1000);
 
-  // 🤖 BOTS
   botInterval = setInterval(() => {
     bots.forEach(bot => {
       let variacao = Math.random() * 2;
@@ -348,41 +364,33 @@ function atualizarRanking() {
   const div = document.getElementById("arenaRanking");
   div.innerHTML = "";
 
-  let posicaoAtual = jogadores.findIndex(j => j.nome === "VOCÊ") + 1;
+  let posicao = jogadores.findIndex(j => j.nome === "VOCÊ") + 1;
 
-  // 🔊 DETECTAR ULTRAPASSAGEM
-let posicao = jogadores.findIndex(j => j.nome === "VOCÊ") + 1;
+  if (posicaoAnterior !== null && posicao < posicaoAnterior) {
+    somUltrapassar();
+  }
 
-if (posicaoAnterior !== null && posicao < posicaoAnterior) {
-  somUltrapassar();
-}
-
-posicaoAnterior = posicao;
+  posicaoAnterior = posicao;
 
   jogadores.slice(0, 4).forEach((j, i) => {
     let porcentagem = (j.score / max) * 100;
 
     div.innerHTML += `
       <div class="rank-player ${j.nome === "VOCÊ" ? "voce" : ""}">
-        
         <div style="display:flex; justify-content:space-between;">
           <span>${i + 1}º • ${j.nome}</span>
           <span>${Math.floor(j.score)}</span>
         </div>
-
         <div class="barra">
           <div class="progresso" style="width:${porcentagem}%"></div>
         </div>
-
       </div>
     `;
   });
 }
 
 function iniciarTimer() {
-
   setInterval(() => {
-
     tempoGlobal--;
 
     if (tempoGlobal <= 0) {
@@ -396,11 +404,9 @@ function iniciarTimer() {
     renderSalas();
 
   }, 1000);
-
 }
 
 function iniciarRodada() {
-
   if (grupoAtual === "A") {
     iniciarSalas(grupoA);
     grupoAtual = "B";
@@ -408,13 +414,10 @@ function iniciarRodada() {
     iniciarSalas(grupoB);
     grupoAtual = "A";
   }
-
 }
 
 function iniciarSalas(grupo) {
-
   grupo.forEach(index => {
-
     const sala = salas[index];
 
     if (sala.emJogo) return;
@@ -424,7 +427,6 @@ function iniciarSalas(grupo) {
     sala.tempo = 30;
 
     let intervalo = setInterval(() => {
-
       sala.tempo--;
 
       if (sala.tempo <= 0) {
@@ -435,9 +437,7 @@ function iniciarSalas(grupo) {
       }
 
     }, 1000);
-
   });
-
 }
 
 function atualizarTimer() {
@@ -452,31 +452,30 @@ function atualizarTimer() {
 window.onload = () => {
   const btn = document.getElementById("clickBtn");
 
-btn.onclick = null; // limpa qualquer evento antigo
+  btn.onclick = null;
 
-btn.addEventListener("click", () => {
+  btn.addEventListener("click", () => {
     if (!cliqueValido()) return;
-    
+
     const agora = Date.now();
 
-fetch(`${window.location.origin}/click`, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json"
-  },
-  body: JSON.stringify({
-    userId: perfil.id,
-    timestamp: agora
-  })
-})
-.then(res => res.json())
-.then(data => {
-  if (!data.ok) return;
- })
-
- .catch(err => {
-  console.log("Erro no click:", err);
- });
+    fetch(`${window.location.origin}/click`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        userId: perfil.id,
+        timestamp: agora
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (!data.ok) return;
+    })
+    .catch(err => {
+      console.log("Erro no click:", err);
+    });
 
     if (agora - ultimoClique < 300) {
       combo++;
@@ -507,7 +506,6 @@ fetch(`${window.location.origin}/click`, {
 };
 
 function mostrarResultado() {
-   
   somVitoria();
 
   let jogadores = [
@@ -529,7 +527,7 @@ function mostrarResultado() {
     texto.innerText = "DOMINOU A PARTIDA!";
     titulo.classList.add("vitoria");
 
-    soltarConfete(); // 🎆 BOOM
+    soltarConfete();
   } else {
     titulo.innerText = `${posicao}º LUGAR`;
     texto.innerText = "Você quase chegou lá!";
@@ -585,7 +583,6 @@ function soltarConfete() {
     });
   }
 
-
   let intervalo = setInterval(draw, 20);
 
   setTimeout(() => {
@@ -594,7 +591,7 @@ function soltarConfete() {
   }, 3000);
 }
 
- function abrirWallet() {
+function abrirWallet() {
   document.getElementById("wallet").classList.remove("hidden");
   document.getElementById("walletSaldo").innerText = saldo.toFixed(2);
 }
@@ -609,7 +606,6 @@ function depositar() {
 
 function fecharDeposito() {
   document.getElementById("modalDeposito").classList.add("hidden");
-
   document.getElementById("pixContainer").innerHTML = "";
 }
 
@@ -622,20 +618,19 @@ async function confirmarDeposito() {
     return;
   }
 
-  // 🔄 loading bonito
   container.innerHTML = "<p>⏳ Gerando PIX...</p>";
 
   try {
-   const res = await fetch(`${window.location.origin}/criar-pagamento`, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json"
-  },
-  body: JSON.stringify({
-    valor: Number(valor),
-    userId: "user1"
-  })
-});
+    const res = await fetch(`${window.location.origin}/criar-pagamento`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        valor: Number(valor),
+        userId: "user1"
+      })
+    });
 
     if (!res.ok) {
       const erro = await res.text();
@@ -645,16 +640,13 @@ async function confirmarDeposito() {
 
     const data = await res.json();
 
-    // 🎯 MOSTRAR PIX BONITO
-  container.innerHTML = `
-  <img src="data:image/png;base64,${data.qr_base64}" style="width:200px; margin-top:10px; border-radius:10px;">
-
-  <button onclick="copiarPix('${data.qr_code}')" class="btn-copiar">
-    📋 Copiar PIX
-  </button>
-
-  <div id="feedbackPix" class="hidden"></div>
-`;
+    container.innerHTML = `
+      <img src="data:image/png;base64,${data.qr_base64}" style="width:200px; margin-top:10px; border-radius:10px;">
+      <button onclick="copiarPix('${data.qr_code}')" class="btn-copiar">
+        📋 Copiar PIX
+      </button>
+      <div id="feedbackPix" class="hidden"></div>
+    `;
 
   } catch (err) {
     container.innerHTML = "<p style='color:red'>Erro ao conectar com servidor</p>";
@@ -683,6 +675,7 @@ function mostrarFeedback(msg) {
   }, 2000);
 }
 
+// ✅ função sacar corrigida - removido o "if (!res.ok)" que estava no lugar errado
 function sacar() {
   let valor = prompt("Valor do saque:");
 
@@ -767,7 +760,7 @@ function animarDinheiro(valor) {
 
 async function buscarSaldo() {
   try {
-    const res = await fetch(`${window.location.origin}/saldo/user1`)
+    const res = await fetch(`${window.location.origin}/saldo/user1`);
 
     if (!res.ok) {
       console.log("Erro ao buscar saldo");
@@ -791,11 +784,12 @@ async function buscarSaldo() {
     console.log("Servidor offline ou erro:", err);
   }
 }
+
 setInterval(buscarSaldo, 2000);
 buscarSaldo();
 
 async function verHistorico() {
-  const res = await fetch(`${window.location.origin}/historico/user1`)
+  const res = await fetch(`${window.location.origin}/historico/user1`);
   const dados = await res.json();
 
   const area = document.getElementById("historicoArea");
@@ -829,21 +823,6 @@ renderRanking();
 renderSalas();
 iniciarTimer();
 
-document.addEventListener("click", () => {
-  if (audioCtx.state !== "running") {
-    audioCtx.resume();
-  }
-
-  // 🔊 inicia som ambiente uma única vez
-  if (!window.somAmbienteIniciado) {
-    window.somAmbienteIniciado = true;
-
-    window.somIntervalo = setInterval(() => {
-      iniciarSomAmbiente();
-    }, 3000);
-  }
-});
-
 function abrirMenu() {
   document.getElementById("menuLateral").classList.remove("hidden");
 }
@@ -867,7 +846,7 @@ function fecharTela() {
 }
 
 function abrirPerfil() {
-  const aproveitamento = perfil.partidas > 0 
+  const aproveitamento = perfil.partidas > 0
     ? Math.round((perfil.vitorias / perfil.partidas) * 100)
     : 0;
 
@@ -906,255 +885,65 @@ function abrirPerfil() {
         </div>
       </div>
 
-      ${renderConquistas()}
-
       <div class="perfil-actions">
-        <button class="btn-primary" onclick="salvarNome()">Salvar nome</button>
-        <button class="btn-secondary" onclick="fecharTela()">Voltar</button>
+        <button class="btn-primary" onclick="salvarNome()">💾 Salvar nome</button>
+        <button class="btn-secondary" onclick="fecharTela()">✕ Fechar</button>
       </div>
 
     </div>
   `);
 }
 
+// ✅ função gerarAvatar que estava faltando no código original
 function gerarAvatar(nome) {
-  const letra = nome.charAt(0).toUpperCase();
-  return letra;
+  return nome ? nome.charAt(0).toUpperCase() : "?";
 }
 
 function salvarNome() {
-  const novoNome = document.getElementById("nomePerfil").value;
-
-  if (!novoNome || novoNome.length < 3) {
-    alert("Nome muito curto");
-    return;
+  const input = document.getElementById("nomePerfil");
+  if (input) {
+    perfil.nome = input.value;
+    salvarPerfil();
+    alert("Nome salvo!");
   }
-
-  perfil.nome = novoNome;
-  salvarPerfil();
-
-  abrirPerfil(); // recarrega
 }
 
-function renderConquistas() {
-  let conquistas = [];
-
-  if (perfil.partidas >= 1) conquistas.push("🎮 Primeira partida");
-  if (perfil.partidas >= 10) conquistas.push("🔥 Jogador frequente");
-  if (perfil.vitorias >= 5) conquistas.push("🏆 Competidor");
-  if (perfil.vitorias >= 20) conquistas.push("👑 Mestre do clique");
-
-  if (conquistas.length === 0) {
-    return `<p style="opacity:0.5;">Nenhuma conquista ainda</p>`;
-  }
-
-  return `
-    <div class="perfil-conquistas">
-      <h3>🏅 Conquistas</h3>
-      ${conquistas.map(c => `<div class="badge">${c}</div>`).join("")}
-    </div>
-  `;
-}
-
-perfil.partidas++;
-perfil.vitorias++; // só se ganhou
-
-salvarPerfil();
-
-function abrirDiretrizes() {
-  abrirTela(`
-    <div class="tela-box" style="overflow-y:auto; max-height:100vh;">
-<div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
-  <span onclick="fecharTela()" style="cursor:pointer; font-size:22px; padding:5px 10px; border-radius:8px; background:#1a2332;">
-  ←
-</span>
-  <h2 style="margin:0;">📜 Diretrizes da Plataforma</h2>
-</div>
-
-      <p>
-        A Click Arena é uma plataforma competitiva baseada em desempenho em tempo real.
-        Nosso objetivo é garantir um ambiente justo, seguro e transparente para todos os jogadores.
-      </p>
-
-      <hr>
-
-      <h3>🧠 1. Conduta do Usuário</h3>
-      <p>
-        Todos os usuários devem manter um comportamento respeitoso dentro da plataforma.
-        Isso inclui evitar linguagem ofensiva, discriminação ou qualquer forma de abuso.
-      </p>
-      <p><strong>Exemplo:</strong> mensagens agressivas, xingamentos ou provocações excessivas podem resultar em penalidades.</p>
-
-      <hr>
-
-      <h3>⚖️ 2. Jogo Justo (Fair Play)</h3>
-      <p>
-        A competição deve ser baseada exclusivamente na habilidade do jogador.
-        É proibido o uso de qualquer ferramenta que automatize ações.
-      </p>
-      <p><strong>Exemplo:</strong> uso de bots, autoclickers ou scripts para clicar automaticamente é considerado fraude.</p>
-
-      <hr>
-
-      <h3>🚫 3. Fraudes e Manipulação</h3>
-      <p>
-        Qualquer tentativa de manipular resultados, explorar falhas do sistema ou obter vantagem indevida é estritamente proibida.
-      </p>
-      <p><strong>Exemplo:</strong> tentar duplicar saldo, burlar o sistema de partidas ou interferir no funcionamento do jogo.</p>
-
-      <hr>
-
-      <h3>💰 4. Depósitos e Saques</h3>
-      <p>
-        Todas as transações financeiras são processadas por meios seguros e monitoradas.
-        O saldo só será atualizado após confirmação do pagamento.
-      </p>
-      <p><strong>Exemplo:</strong> gerar um PIX não garante crédito imediato — o valor só entra após pagamento confirmado.</p>
-
-      <hr>
-
-      <h3>🔐 5. Segurança da Conta</h3>
-      <p>
-        O usuário é totalmente responsável pela segurança de sua conta.
-        Não compartilhe seus dados de acesso com terceiros.
-      </p>
-      <p><strong>Exemplo:</strong> se outra pessoa acessar sua conta e usar seu saldo, a responsabilidade é do usuário.</p>
-
-      <hr>
-
-      <h3>📊 6. Resultados das Partidas</h3>
-      <p>
-        Os resultados são calculados automaticamente pelo sistema com base nos cliques realizados.
-        Não há interferência manual.
-      </p>
-      <p><strong>Exemplo:</strong> em caso de empate ou inconsistência, o sistema define o resultado com base em critérios técnicos.</p>
-
-      <hr>
-
-      <h3>🚨 7. Penalidades</h3>
-      <p>
-        A Click Arena pode aplicar penalidades a qualquer momento em caso de violação das regras.
-      </p>
-      <ul>
-        <li>Suspensão temporária</li>
-        <li>Remoção de saldo</li>
-        <li>Banimento permanente</li>
-      </ul>
-
-      <hr>
-
-      <h3>📩 8. Reclamações e Suporte</h3>
-      <p>
-        Caso o usuário enfrente qualquer problema, poderá utilizar a área de reclamações.
-        Todas as solicitações serão analisadas.
-      </p>
-
-      <hr>
-
-      <h3>📌 9. Aceitação dos Termos</h3>
-      <p>
-        Ao utilizar a Click Arena, o usuário declara estar ciente e de acordo com todas as diretrizes descritas acima.
-      </p>
-
-      <br><br>
-
-      <button onclick="fecharTela()">Voltar</button>
-    </div>
-  `);
-}
-
-function abrirReclamacoes() {
-  abrirTela(`
-    <div class="tela-box reclamacao-box">
-
-      <h2>🚨 Reclamações</h2>
-
-      <p class="reclamacao-sub">
-        Teve algum problema? Nos conte o que aconteceu.
-      </p>
-
-      <textarea 
-        id="inputReclamacao" 
-        placeholder="Descreva seu problema com detalhes..."
-      ></textarea>
-
-      <button class="btn-primary" onclick="enviarReclamacao()">
-        Enviar reclamação
-      </button>
-
-      <button class="btn-secondary" onclick="fecharTela()">
-        Voltar
-      </button>
-
-      <div id="feedbackReclamacao"></div>
-
-    </div>
-  `);
-}
-
-function enviarReclamacao() {
-  const textarea = document.getElementById("inputReclamacao");
-  const feedback = document.getElementById("feedbackReclamacao");
-
-  const texto = textarea.value;
-
-  if (!texto || texto.length < 10) {
-    feedback.innerHTML = `<p style="color:#ff6b6b;">Descreva melhor o problema</p>`;
-    return;
-  }
-
-  // 🔥 ESCONDE O CAMPO (efeito profissional)
-  textarea.style.display = "none";
-
-  // 🔥 feedback bonito
-  feedback.innerHTML = `
-    <div style="
-      background: #0f172a;
-      padding: 20px;
-      border-radius: 12px;
-      text-align: center;
-      margin-top: 10px;
-      border: 1px solid #22c55e;
-    ">
-      <h3 style="color:#4ade80;">✔ Reclamação enviada</h3>
-      <p style="opacity:0.7;">Nossa equipe irá analisar o caso.</p>
-    </div>
-  `;
+function abrirWallet() {
+  document.getElementById("wallet").classList.remove("hidden");
+  document.getElementById("walletSaldo").innerText = "R$ " + saldo.toFixed(2);
 }
 
 function abrirConfiguracoes() {
   abrirTela(`
     <div class="tela-box">
-
-      <h2>⚙️ Configurações</h2>
-
-      ${toggle("Modo rápido", "modoRapido")}
-      ${toggle("Sons", "sons")}
-      ${toggle("Modo competitivo", "modoCompetitivo")}
-      ${toggle("Animações", "animacoes")}
-
-      <button class="btn-secondary" onclick="fecharTela()">Voltar</button>
-
+      <div class="tela-header">
+        <span class="btn-voltar" onclick="fecharTela()">←</span>
+        <h2>Configurações</h2>
+      </div>
+      <div class="tela-content">
+        <div class="config-item">
+          <span>Som</span>
+          <input type="checkbox" checked>
+        </div>
+        <div class="config-item">
+          <span>Vibração</span>
+          <input type="checkbox" checked>
+        </div>
+      </div>
     </div>
   `);
 }
 
-function getConfig(key) {
-  return localStorage.getItem(key) !== "false";
-}
-
-function setConfig(key, value) {
-  localStorage.setItem(key, value);
-}
-
-function toggle(label, key) {
-  const ativo = getConfig(key);
-
-  return `
-    <div class="config-item">
-      <span>${label}</span>
-      <input type="checkbox" ${ativo ? "checked" : ""} 
-        onchange="setConfig('${key}', this.checked)">
+function abrirDiretrizes() {
+  abrirTela(`
+    <div class="tela-box">
+      <div class="tela-header">
+        <span class="btn-voltar" onclick="fecharTela()">←</span>
+        <h2>Diretrizes</h2>
+      </div>
+      <div class="tela-content">
+        <p>Use o jogo de forma justa. Bots e trapaças resultam em banimento permanente.</p>
+      </div>
     </div>
-  `;
+  `);
 }

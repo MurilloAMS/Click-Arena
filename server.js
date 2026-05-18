@@ -189,7 +189,15 @@ app.post("/click", (req, res) => {
   res.json({ ok: true, cliques: jogador.cliques });
 });
 
-app.use(express.static(__dirname));
+const path = require("path");
+
+const frontendPath = path.join(__dirname);
+
+app.use(express.static(frontendPath));
+
+app.get("/", (req, res) => {
+  res.sendFile(path.join(frontendPath, "index.html"));
+});
 
 app.get("/", (req, res) => {
 
