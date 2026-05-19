@@ -2,177 +2,184 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport"
-  content="width=device-width, initial-scale=1.0">
-  <title>Click Arenna</title>
-  <link rel="stylesheet" href="style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Click Arena</title>
+  <link rel="stylesheet" href="/style.css">
   <link rel="icon" href="/favicon.png">
 </head>
 <body>
-  <div id="menuLateral" class="menu-lateral hidden">
 
-  <div class="menu-header">
-    <h2>Menu</h2>
-    <span onclick="fecharMenu()">✕</span>
+<!-- =============================
+     TELA DE LOGIN
+============================= -->
+<div id="telaLogin" class="tela-auth">
+  <div class="auth-box">
+    <div class="auth-logo">Cl<span class="i-custom">í</span>ck</div>
+    <h2>Entrar</h2>
+
+    <input id="loginEmail" type="email" placeholder="E-mail" class="auth-input" />
+    <input id="loginSenha" type="password" placeholder="Senha" class="auth-input" />
+
+    <div id="loginErro" class="auth-erro hidden"></div>
+
+    <button onclick="fazerLogin()" class="btn-primary">Entrar</button>
+    <button onclick="mostrarCadastro()" class="btn-secondary" style="margin-top:10px">
+      Criar conta
+    </button>
   </div>
-
-  <div class="menu-item" onclick="abrirPerfil()">👤 Perfil</div>
-  <div class="menu-item" onclick="abrirWallet()">💰 Carteira</div>
-  <div class="menu-item" onclick="abrirConfiguracoes()">⚙️ Configurações</div>
-  <div class="menu-item" onclick="abrirDiretrizes()">📜 Diretrizes</div>
-  <div class="menu-item" onclick="abrirReclamacoes()">🚨 Reclamações</div>
-
 </div>
+
+<!-- =============================
+     TELA DE CADASTRO
+============================= -->
+<div id="telaCadastro" class="tela-auth hidden">
+  <div class="auth-box">
+    <div class="auth-logo">Cl<span class="i-custom">í</span>ck</div>
+    <h2>Criar conta</h2>
+
+    <!-- foto de perfil -->
+    <div class="foto-upload" onclick="document.getElementById('inputFoto').click()">
+      <div id="fotoPreview" class="foto-placeholder">📷</div>
+      <span>Adicionar foto</span>
+    </div>
+    <input id="inputFoto" type="file" accept="image/*" class="hidden" onchange="previewFoto(event)" />
+
+    <input id="cadNome" type="text" placeholder="Nome de usuário" class="auth-input" />
+    <input id="cadEmail" type="email" placeholder="E-mail" class="auth-input" />
+    <input id="cadSenha" type="password" placeholder="Senha" class="auth-input" />
+
+    <div id="cadErro" class="auth-erro hidden"></div>
+
+    <button onclick="fazerCadastro()" class="btn-primary">Criar conta</button>
+    <button onclick="mostrarLogin()" class="btn-secondary" style="margin-top:10px">
+      Já tenho conta
+    </button>
+  </div>
+</div>
+
+<!-- =============================
+     JOGO PRINCIPAL (inicia hidden)
+============================= -->
+<div id="jogoprincipal" class="hidden">
+
+  <!-- MENU LATERAL -->
+  <div id="menuLateral" class="menu-lateral hidden">
+    <div class="menu-header">
+      <h2>Menu</h2>
+      <span onclick="fecharMenu()">✕</span>
+    </div>
+    <div class="menu-item" onclick="abrirPerfil()">👤 Perfil</div>
+    <div class="menu-item" onclick="abrirWallet()">💰 Carteira</div>
+    <div class="menu-item" onclick="abrirConfiguracoes()">⚙️ Configurações</div>
+    <div class="menu-item" onclick="abrirDiretrizes()">📜 Diretrizes</div>
+    <div class="menu-item" onclick="abrirReclamacoes()">🚨 Reclamações</div>
+    <div class="menu-item" onclick="fazerLogout()">🚪 Sair</div>
+  </div>
 
   <!-- TOPO -->
   <div class="topo">
     <div class="menu" onclick="abrirMenu()">☰</div>
-    <div class="logo">
-   Cl<span class="i-custom">í</span>ck
-   </div>
+    <div class="logo">Cl<span class="i-custom">í</span>ck</div>
     <div class="saldo" id="saldo" onclick="abrirWallet()">R$ 0.00</div>
   </div>
 
   <!-- TIMER -->
   <div class="timer-wrapper">
     <div class="timer-box">
-
       <div class="timer-glow"></div>
-
       <div class="timer-label">PRÓXIMA PARTIDA</div>
-      
       <div class="timer-circle">
         <div class="timer-ring"></div>
         <div class="timer-text" id="timer">00:30</div>
       </div>
-
     </div>
   </div>
 
   <!-- RANKING -->
- <div class="ranking" id="ranking">
-  <h3>🏆 Top jogadores hoje</h3>
+  <div class="ranking" id="ranking">
+    <h3>🏆 Top jogadores hoje</h3>
+  </div>
 
-  <div class="rank-card gold">
-    <div class="rank-left">
-      <div class="rank-icon">🥇</div>
-      <div>
-        <div class="rank-name">Neymar Jr.</div>
-        <div class="rank-info">12 vitórias • 3200 cliques</div>
+  <!-- ARENA -->
+  <div id="arena" class="arena hidden">
+    <div class="arena-topo">Click</div>
+    <div class="arena-content">
+      <div class="arena-ranking" id="arenaRanking"></div>
+      <div class="arena-center">
+        <button id="clickBtn">CLICK</button>
+        <div id="clickArea"></div>
       </div>
     </div>
-    <div class="rank-money">R$ 1542</div>
+    <div class="arena-timer" id="arenaTimer">30s</div>
   </div>
-
-  <div class="rank-card silver">
-    <div class="rank-left">
-      <div class="rank-icon">🥈</div>
-      <div>
-        <div class="rank-name">Estevão Jardim</div>
-        <div class="rank-info">10 vitórias • 2980 cliques</div>
-      </div>
-    </div>
-    <div class="rank-money">R$ 1320</div>
-  </div>
-
-  <div class="rank-card bronze">
-    <div class="rank-left">
-      <div class="rank-icon">🥉</div>
-      <div>
-        <div class="rank-name">Caroline Maria</div>
-        <div class="rank-info">8 vitórias • 2750 cliques</div>
-      </div>
-    </div>
-    <div class="rank-money">R$ 1105</div>
-  </div>
-
-</div>
-
-<div id="arena" class="arena hidden">
-
-  <div class="arena-topo">Click</div>
-
-  <div class="arena-content">
-
-    <!-- RANKING -->
-    <div class="arena-ranking" id="arenaRanking"></div>
-
-    <!-- BOTÃO -->
-    <div class="arena-center">
-      <button id="clickBtn">CLICK</button>
-      <div id="clickArea"></div>
-    </div>
-
-  </div>
-
-  <div class="arena-timer" id="arenaTimer">30s</div>
-
-</div>
 
   <!-- SALAS -->
   <div class="salas" id="salas"></div>
 
- <div id="resultado" class="resultado hidden">
-  <canvas id="confete"></canvas>
-
-  <div class="resultado-box">
-    <h1 id="resultadoTitulo"></h1>
-    <p id="resultadoTexto"></p>
-    <button onclick="fecharResultado()">Jogar novamente</button>
+  <!-- RESULTADO -->
+  <div id="resultado" class="resultado hidden">
+    <canvas id="confete"></canvas>
+    <div class="resultado-box">
+      <h1 id="resultadoTitulo"></h1>
+      <p id="resultadoTexto"></p>
+      <button onclick="fecharResultado()">Jogar novamente</button>
+    </div>
   </div>
-</div>
 
-<div id="wallet" class="wallet hidden">
-  <div class="wallet-box">
+  <!-- WALLET -->
+  <div id="wallet" class="wallet hidden">
+    <div class="wallet-box">
+      <div class="wallet-header">
+        <h2>Carteira</h2>
+        <span onclick="fecharWallet()">✕</span>
+      </div>
+      <div class="wallet-balance">
+        <span>Saldo disponível</span>
+        <h1 id="walletSaldo">R$ 0.00</h1>
+      </div>
+      <div class="wallet-actions">
+        <button onclick="depositar()" class="btn-depositar">Depositar</button>
+        <button onclick="sacar()" class="btn-sacar">Sacar</button>
+      </div>
 
-    <div class="wallet-header">
-      <h2>Carteira</h2>
-      <span onclick="fecharWallet()">✕</span>
-    </div>
+      <div id="modalDeposito" class="hidden">
+        <div class="deposito-box">
+          <h3>💰 Depositar via PIX</h3>
+          <input id="inputValor" type="number" placeholder="Digite o valor" />
+          <button onclick="confirmarDeposito()">Gerar PIX</button>
+          <button onclick="fecharDeposito()">Cancelar</button>
+          <div id="pixContainer"></div>
+        </div>
+      </div>
 
-    <div class="wallet-balance">
-      <span>Saldo disponível</span>
-      <h1 id="walletSaldo">R$ 0.00</h1>
-    </div>
+      <!-- MODAL SAQUE -->
+      <div id="modalSaque" class="hidden">
+        <div class="deposito-box">
+          <h3>💸 Solicitar Saque</h3>
+          <input id="inputSaqueValor" type="number" placeholder="Valor do saque" />
+          <input id="inputSaqueChave" type="text" placeholder="Sua chave PIX" />
+          <button onclick="confirmarSaque()">Solicitar</button>
+          <button onclick="fecharSaque()">Cancelar</button>
+          <div id="saqueMsg" class="hidden"></div>
+        </div>
+      </div>
 
-    <div class="wallet-actions">
-      <button onclick="depositar()" class="btn-depositar">Depositar</button>
-      <button onclick="sacar()" class="btn-sacar">Sacar</button>
-    </div>
+      <button onclick="verHistorico()" class="btn-historico">
+        📊 Histórico de transações
+      </button>
+      <div id="historicoArea" class="hidden"></div>
 
-    <!-- 🔥 MODAL DE DEPÓSITO -->
-    <div id="modalDeposito" class="hidden">
-      <div class="deposito-box">
-
-        <h3>💰 Depositar via PIX</h3>
-
-        <input id="inputValor" type="number" placeholder="Digite o valor">
-
-        <button onclick="confirmarDeposito()">Gerar PIX</button>
-        <button onclick="fecharDeposito()">Cancelar</button>
-
-        <div id="pixContainer"></div>
-
+      <div class="wallet-card">
+        <span>Conta vinculada</span>
+        <p>•••• •••• •••• 4589</p>
       </div>
     </div>
-
-    <button onclick="verHistorico()" class="btn-historico">
-      📊 Histórico de transações
-    </button>
-
-    <div id="historicoArea" class="hidden"></div>
-
-    <div class="wallet-card">
-      <span>Conta vinculada</span>
-      <p>•••• •••• •••• 4589</p>
-    </div>
-
   </div>
-</div>
 
-<div id="telaMenu" class="tela hidden"></div>
+  <div id="telaMenu" class="tela hidden"></div>
 
-  <script src="/script.js"></script>
+</div><!-- fim jogoprincial -->
 
+<script src="/script.js"></script>
 </body>
 </html>
