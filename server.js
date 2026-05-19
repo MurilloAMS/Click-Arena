@@ -10,17 +10,11 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
-// =============================
-// 🗄️ SUPABASE
-// =============================
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
 );
 
-// =============================
-// 💳 MERCADO PAGO
-// =============================
 const client = new MercadoPagoConfig({
   accessToken: process.env.MP_ACCESS_TOKEN
 });
@@ -157,7 +151,7 @@ app.post("/criar-pagamento", async (req, res) => {
 });
 
 // =============================
-// 🔔 WEBHOOK (CONFIRMA PAGAMENTO)
+// 🔔 WEBHOOK
 // =============================
 app.post("/webhook", async (req, res) => {
   try {
@@ -171,8 +165,6 @@ app.post("/webhook", async (req, res) => {
         const userId = pagamento.external_reference;
         const valor = pagamento.transaction_amount;
 
-        console.log("💰 PAGAMENTO APROVADO:", userId, valor);
-
         const { data: usuario } = await supabase
           .from("usuarios")
           .select("saldo")
@@ -180,11 +172,9 @@ app.post("/webhook", async (req, res) => {
           .single();
 
         if (usuario) {
-          const novoSaldo = (usuario.saldo || 0) + valor;
-
           await supabase
             .from("usuarios")
-            .update({ saldo: novoSaldo })
+            .update({ saldo: (usuario.saldo || 0) + valor })
             .eq("id", userId);
 
           await supabase
@@ -202,7 +192,7 @@ app.post("/webhook", async (req, res) => {
 });
 
 // =============================
-// 💸 SACAR DINHEIRO
+// 💸 SACAR
 // =============================
 app.post("/sacar", async (req, res) => {
   const { valor, userId } = req.body;
@@ -213,26 +203,17 @@ app.post("/sacar", async (req, res) => {
     .eq("id", userId)
     .single();
 
-  if (!usuario) {
-    return res.status(404).json({ erro: "Usuário não encontrado" });
-  }
-
-  if (usuario.saldo < valor) {
-    return res.status(400).json({ erro: "Saldo insuficiente" });
-  }
-
-  const novoSaldo = usuario.saldo - valor;
+  if (!usuario) return res.status(404).json({ erro: "Usuário não encontrado" });
+  if (usuario.saldo < valor) return res.status(400).json({ erro: "Saldo insuficiente" });
 
   await supabase
     .from("usuarios")
-    .update({ saldo: novoSaldo })
+    .update({ saldo: usuario.saldo - valor })
     .eq("id", userId);
 
   await supabase
     .from("historico")
     .insert([{ user_id: userId, tipo: "Saque", valor }]);
-
-  console.log("📤 Saque solicitado:", userId, valor);
 
   res.json({ ok: true, mensagem: "Pedido de saque realizado com sucesso, em até 48h o saque será realizado" });
 });
@@ -241,34 +222,30 @@ app.post("/sacar", async (req, res) => {
 // 📋 HISTÓRICO
 // =============================
 app.get("/historico/:userId", async (req, res) => {
-  const { userId } = req.params;
-
   const { data } = await supabase
     .from("historico")
     .select("*")
-    .eq("user_id", userId)
+    .eq("user_id", req.params.userId)
     .order("data", { ascending: false });
 
   res.json(data || []);
 });
 
 // =============================
-// 📊 CONSULTAR SALDO
+// 📊 SALDO
 // =============================
 app.get("/saldo/:userId", async (req, res) => {
-  const { userId } = req.params;
-
   const { data: usuario } = await supabase
     .from("usuarios")
     .select("saldo")
-    .eq("id", userId)
+    .eq("id", req.params.userId)
     .single();
 
   res.json({ saldo: usuario ? usuario.saldo : 0 });
 });
 
 // =============================
-// 🏆 RANKING DIÁRIO
+// 🏆 RANKING
 // =============================
 app.get("/ranking", async (req, res) => {
   const hoje = new Date().toISOString().split("T")[0];
@@ -284,7 +261,34 @@ app.get("/ranking", async (req, res) => {
 });
 
 // =============================
-// 🖱️ REGISTRAR CLIQUE
+// 🖼️ ATUALIZAR FOTO
+// =============================
+app.post("/atualizar-foto", async (req, res) => {
+  const { userId, foto_base64 } = req.body;
+
+  const buffer = Buffer.from(foto_base64.split(",")[1], "base64");
+  const filename = `${Date.now()}-${userId}.jpg`;
+
+  const { error } = await supabase.storage
+    .from("fotos")
+    .upload(filename, buffer, { contentType: "image/jpeg" });
+
+  if (error) return res.status(500).json({ erro: error.message });
+
+  const { data: urlData } = supabase.storage
+    .from("fotos")
+    .getPublicUrl(filename);
+
+  await supabase
+    .from("usuarios")
+    .update({ foto_url: urlData.publicUrl })
+    .eq("id", userId);
+
+  res.json({ ok: true, foto_url: urlData.publicUrl });
+});
+
+// =============================
+// 🖱️ CLIQUE
 // =============================
 app.post("/click", (req, res) => {
   const { userId, timestamp } = req.body;
@@ -293,44 +297,35 @@ app.post("/click", (req, res) => {
     jogadores[userId] = { cliques: 0, ultimoClique: 0, historico: [] };
   }
 
-  let jogador = jogadores[userId];
+  const jogador = jogadores[userId];
 
-  if (timestamp - jogador.ultimoClique < 80) {
-    return res.json({ ok: false });
-  }
+  if (timestamp - jogador.ultimoClique < 80) return res.json({ ok: false });
 
   jogador.ultimoClique = timestamp;
   jogador.cliques++;
   jogador.historico.push(timestamp);
-
   if (jogador.historico.length > 10) jogador.historico.shift();
 
   if (jogador.historico.length === 10) {
-    let intervalos = [];
-    for (let i = 1; i < jogador.historico.length; i++) {
-      intervalos.push(jogador.historico[i] - jogador.historico[i - 1]);
-    }
-    let variacao = Math.max(...intervalos) - Math.min(...intervalos);
-    if (variacao < 10) console.log("🚨 BOT DETECTADO:", userId);
+    const intervalos = jogador.historico.slice(1).map((t, i) => t - jogador.historico[i]);
+    const variacao = Math.max(...intervalos) - Math.min(...intervalos);
+    if (variacao < 10) console.log("🚨 BOT:", userId);
   }
 
   res.json({ ok: true, cliques: jogador.cliques });
 });
 
 // =============================
-// 📁 ARQUIVOS ESTÁTICOS
+// 📁 ESTÁTICOS + ROTA PRINCIPAL
 // =============================
-const frontendPath = path.join(__dirname);
-app.use(express.static(frontendPath));
+app.use(express.static(path.join(__dirname)));
 
 app.get("/", (req, res) => {
-  res.sendFile(path.join(frontendPath, "index.html"));
+  res.sendFile(path.join(__dirname, "index.html"));
 });
 
 // =============================
-// 🚀 INICIAR SERVIDOR
+// 🚀 SERVIDOR
 // =============================
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log("Servidor rodando na porta " + PORT);
-});
+app.listen(PORT, () => console.log("Servidor rodando na porta " + PORT));
