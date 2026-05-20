@@ -3,7 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Click Arena</title>
+
+  <!-- SEO -->
+  <title>Click Arena — Ganhe dinheiro clicando</title>
+  <meta name="description" content="Compete em partidas de cliques e ganhe dinheiro real! Deposite via PIX, entre em uma sala e vença outros jogadores clicando mais rápido.">
+  <meta name="keywords" content="ganhe dinheiro clicando, jogo de cliques, click arena, ganhar dinheiro online, pix, partidas online">
+  <meta name="author" content="Click Arena">
+  <meta name="robots" content="index, follow">
+
+  <!-- Open Graph (WhatsApp, Facebook) -->
+  <meta property="og:title" content="Click Arena — Ganhe dinheiro clicando" />
+  <meta property="og:description" content="Compete em partidas de cliques e ganhe dinheiro real via PIX!" />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="/favicon.png" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Click Arena" />
+  <meta name="twitter:description" content="Ganhe dinheiro clicando mais rápido que os outros!" />
+
   <link rel="stylesheet" href="/style.css">
   <link rel="icon" href="/favicon.png">
 </head>
@@ -81,8 +99,6 @@
         <div class="timer-text" id="timer">00:30</div>
       </div>
     </div>
-
-    <!-- BOTÕES LATERAIS DO TIMER -->
     <div class="timer-botoes">
       <button class="timer-btn" onclick="abrirChat()" title="Chat Global">💬</button>
       <button class="timer-btn" onclick="abrirTreino()" title="Arena de Treino">🏋️</button>
@@ -102,9 +118,7 @@
   <div id="arena" class="arena hidden">
     <div class="arena-topo">⚔️ Click Arena</div>
     <div class="arena-layout">
-      <!-- RANKING DA ARENA -->
       <div class="arena-ranking" id="arenaRanking"></div>
-      <!-- BOTÃO CENTRAL -->
       <div class="arena-center">
         <button id="clickBtn">CLICK</button>
         <div id="clickArea"></div>
@@ -178,15 +192,19 @@
         <button onclick="depositar()" class="btn-depositar">Depositar</button>
         <button onclick="sacar()" class="btn-sacar">Sacar</button>
       </div>
+
+      <!-- MODAL DEPÓSITO -->
       <div id="modalDeposito" class="hidden">
         <div class="deposito-box">
           <h3>💰 Depositar via PIX</h3>
-          <input id="inputValor" type="number" placeholder="Digite o valor" />
+          <input id="inputValor" type="number" placeholder="Digite o valor (mín. R$ 2)" />
           <button onclick="confirmarDeposito()">Gerar PIX</button>
           <button onclick="fecharDeposito()">Cancelar</button>
           <div id="pixContainer"></div>
         </div>
       </div>
+
+      <!-- MODAL SAQUE -->
       <div id="modalSaque" class="hidden">
         <div class="deposito-box">
           <h3>💸 Solicitar Saque</h3>
@@ -197,8 +215,10 @@
           <div id="saqueMsg" class="hidden"></div>
         </div>
       </div>
+
       <button onclick="verHistorico()" class="btn-historico">📊 Histórico de transações</button>
       <div id="historicoArea" class="hidden"></div>
+
       <div class="wallet-card">
         <span>Conta vinculada</span>
         <p>•••• •••• •••• 4589</p>

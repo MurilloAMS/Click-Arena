@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const nodemailer = require("nodemailer");
 const { MercadoPagoConfig, Payment } = require("mercadopago");
 const { createClient } = require("@supabase/supabase-js");
 
@@ -22,6 +23,67 @@ const client = new MercadoPagoConfig({
 const payment = new Payment(client);
 
 let jogadores = {};
+
+// =============================
+// 📧 NODEMAILER
+// =============================
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
+
+async function enviarEmailSaque(usuario, valor, chave_pix) {
+  const agora = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+
+  await transporter.sendMail({
+    from: `"Click Arena" <${process.env.EMAIL_USER}>`,
+    to: process.env.EMAIL_USER,
+    subject: `💸 Novo Pedido de Saque — R$ ${Number(valor).toFixed(2)}`,
+    html: `
+      <div style="font-family:Arial; max-width:500px; margin:auto; background:#0f172a; color:white; padding:30px; border-radius:12px;">
+        <h2 style="color:#22c55e; margin-bottom:20px;">💸 Pedido de Saque</h2>
+
+        <table style="width:100%; border-collapse:collapse;">
+          <tr>
+            <td style="padding:10px 0; color:#9ca3af;">Usuário</td>
+            <td style="padding:10px 0; font-weight:bold;">${usuario.nome}</td>
+          </tr>
+          <tr>
+            <td style="padding:10px 0; color:#9ca3af;">E-mail</td>
+            <td style="padding:10px 0;">${usuario.email}</td>
+          </tr>
+          <tr>
+            <td style="padding:10px 0; color:#9ca3af;">ID</td>
+            <td style="padding:10px 0; font-size:12px;">${usuario.id}</td>
+          </tr>
+          <tr>
+            <td style="padding:10px 0; color:#9ca3af;">Valor</td>
+            <td style="padding:10px 0; font-weight:bold; color:#22c55e; font-size:20px;">R$ ${Number(valor).toFixed(2)}</td>
+          </tr>
+          <tr>
+            <td style="padding:10px 0; color:#9ca3af;">Chave PIX</td>
+            <td style="padding:10px 0; font-weight:bold;">${chave_pix}</td>
+          </tr>
+          <tr>
+            <td style="padding:10px 0; color:#9ca3af;">Saldo após saque</td>
+            <td style="padding:10px 0;">R$ ${(usuario.saldo - valor).toFixed(2)}</td>
+          </tr>
+          <tr>
+            <td style="padding:10px 0; color:#9ca3af;">Data/Hora</td>
+            <td style="padding:10px 0;">${agora}</td>
+          </tr>
+        </table>
+
+        <p style="margin-top:20px; color:#6b7280; font-size:12px;">
+          Este e-mail foi gerado automaticamente pelo sistema Click Arena.
+        </p>
+      </div>
+    `
+  });
+}
 
 // =============================
 // 👤 CADASTRO
@@ -131,7 +193,6 @@ app.get("/chat", async (req, res) => {
     .limit(50);
 
   if (error) return res.status(500).json({ erro: error.message });
-
   res.json(data || []);
 });
 
@@ -153,7 +214,6 @@ app.post("/chat", async (req, res) => {
 
   if (error) return res.status(500).json({ erro: error.message });
 
-  // mantém só as últimas 100 mensagens
   const { data: todas } = await supabase
     .from("chat_global")
     .select("id")
@@ -181,7 +241,7 @@ app.post("/criar-pagamento", async (req, res) => {
         payment_method_id: "pix",
         payer: { email: "usuario@seudominio.com" },
         external_reference: userId,
-        notification_url: "https://click-arena-ypsh.onrender.com/webhook"
+        notification_url: `${process.env.APP_URL}/webhook`
       }
     });
 
@@ -239,14 +299,18 @@ app.post("/webhook", async (req, res) => {
 });
 
 // =============================
-// 💸 SACAR
+// 💸 SACAR COM E-MAIL
 // =============================
 app.post("/sacar", async (req, res) => {
-  const { valor, userId } = req.body;
+  const { valor, userId, chave_pix } = req.body;
+
+  if (!chave_pix) {
+    return res.status(400).json({ erro: "Informe sua chave PIX" });
+  }
 
   const { data: usuario } = await supabase
     .from("usuarios")
-    .select("saldo, nome, email")
+    .select("saldo, nome, email, id")
     .eq("id", userId)
     .single();
 
@@ -262,7 +326,19 @@ app.post("/sacar", async (req, res) => {
     .from("historico")
     .insert([{ user_id: userId, tipo: "Saque", valor }]);
 
-  res.json({ ok: true, mensagem: "Pedido de saque realizado com sucesso, em até 48h o saque será realizado" });
+  // envia e-mail de notificação
+  try {
+    await enviarEmailSaque(usuario, valor, chave_pix);
+    console.log("📧 E-mail de saque enviado:", usuario.email, valor);
+  } catch (emailErr) {
+    console.log("⚠️ Erro ao enviar e-mail:", emailErr.message);
+    // não retorna erro — saque foi processado mesmo se email falhar
+  }
+
+  res.json({
+    ok: true,
+    mensagem: "Pedido de saque realizado com sucesso, em até 48h o saque será realizado"
+  });
 });
 
 // =============================
