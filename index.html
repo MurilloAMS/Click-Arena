@@ -3,33 +3,48 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <!-- SEO -->
   <title>Click Arena — Ganhe dinheiro clicando</title>
   <meta name="description" content="Compete em partidas de cliques e ganhe dinheiro real! Deposite via PIX, entre em uma sala e vença outros jogadores clicando mais rápido.">
   <meta name="keywords" content="ganhe dinheiro clicando, jogo de cliques, click arena, ganhar dinheiro online, pix, partidas online">
   <meta name="author" content="Click Arena">
   <meta name="robots" content="index, follow">
-
-  <!-- Open Graph (WhatsApp, Facebook) -->
+  <meta name="theme-color" content="#0B0F1A">
   <meta property="og:title" content="Click Arena — Ganhe dinheiro clicando" />
   <meta property="og:description" content="Compete em partidas de cliques e ganhe dinheiro real via PIX!" />
   <meta property="og:type" content="website" />
   <meta property="og:image" content="/favicon.png" />
-
-  <!-- Twitter -->
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="Click Arena" />
   <meta name="twitter:description" content="Ganhe dinheiro clicando mais rápido que os outros!" />
+
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/favicon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Click Arena">
 
   <link rel="stylesheet" href="/style.css">
   <link rel="icon" href="/favicon.png">
 </head>
 <body>
 
-<!-- =============================
-     TELA DE LOGIN
-============================= -->
+<!-- PWA INSTALL BANNER -->
+<div id="pwaBanner" class="pwa-banner hidden">
+  <div class="pwa-banner-info">
+    <div class="pwa-banner-icon">🎮</div>
+    <div class="pwa-banner-texto">
+      <strong>Instalar Click Arena</strong>
+      <span>Acesso rápido direto da sua tela</span>
+    </div>
+  </div>
+  <div class="pwa-banner-acoes">
+    <button class="btn-instalar" onclick="instalarApp()">Instalar</button>
+    <button class="btn-fechar-pwa" onclick="fecharPwaBanner()">✕</button>
+  </div>
+</div>
+
+<!-- TELA DE LOGIN -->
 <div id="telaLogin" class="tela-auth">
   <div class="auth-box">
     <div class="auth-logo">Cl<span class="i-custom">í</span>ck</div>
@@ -42,9 +57,7 @@
   </div>
 </div>
 
-<!-- =============================
-     TELA DE CADASTRO
-============================= -->
+<!-- TELA DE CADASTRO -->
 <div id="telaCadastro" class="tela-auth hidden">
   <div class="auth-box">
     <div class="auth-logo">Cl<span class="i-custom">í</span>ck</div>
@@ -63,9 +76,7 @@
   </div>
 </div>
 
-<!-- =============================
-     JOGO PRINCIPAL
-============================= -->
+<!-- JOGO PRINCIPAL -->
 <div id="jogoprincipal" class="hidden">
 
   <!-- MENU LATERAL -->
@@ -89,7 +100,7 @@
     <div class="saldo" id="saldo" onclick="abrirWallet()">R$ 0.00</div>
   </div>
 
-  <!-- TIMER + BOTÕES LATERAIS -->
+  <!-- TIMER + BOTÕES -->
   <div class="timer-wrapper">
     <div class="timer-box">
       <div class="timer-glow"></div>
@@ -157,6 +168,7 @@
     <canvas id="confete"></canvas>
     <div class="resultado-box">
       <h1 id="resultadoTitulo"></h1>
+      <div id="resultadoGanho" class="resultado-ganho hidden"></div>
       <p id="resultadoTexto"></p>
       <button onclick="fecharResultado()">Jogar novamente</button>
     </div>
@@ -192,8 +204,6 @@
         <button onclick="depositar()" class="btn-depositar">Depositar</button>
         <button onclick="sacar()" class="btn-sacar">Sacar</button>
       </div>
-
-      <!-- MODAL DEPÓSITO -->
       <div id="modalDeposito" class="hidden">
         <div class="deposito-box">
           <h3>💰 Depositar via PIX</h3>
@@ -203,8 +213,6 @@
           <div id="pixContainer"></div>
         </div>
       </div>
-
-      <!-- MODAL SAQUE -->
       <div id="modalSaque" class="hidden">
         <div class="deposito-box">
           <h3>💸 Solicitar Saque</h3>
@@ -215,10 +223,8 @@
           <div id="saqueMsg" class="hidden"></div>
         </div>
       </div>
-
       <button onclick="verHistorico()" class="btn-historico">📊 Histórico de transações</button>
       <div id="historicoArea" class="hidden"></div>
-
       <div class="wallet-card">
         <span>Conta vinculada</span>
         <p>•••• •••• •••• 4589</p>
@@ -229,6 +235,39 @@
   <div id="telaMenu" class="tela hidden"></div>
 
 </div>
+
+<!-- SERVICE WORKER + PWA -->
+<script>
+let deferredPrompt = null;
+
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById("pwaBanner").classList.remove("hidden");
+});
+
+window.addEventListener("appinstalled", () => {
+  document.getElementById("pwaBanner").classList.add("hidden");
+  deferredPrompt = null;
+});
+
+function instalarApp() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(() => {
+    deferredPrompt = null;
+    document.getElementById("pwaBanner").classList.add("hidden");
+  });
+}
+
+function fecharPwaBanner() {
+  document.getElementById("pwaBanner").classList.add("hidden");
+}
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js").catch(() => {});
+}
+</script>
 
 <script src="/script.js"></script>
 </body>

@@ -96,6 +96,7 @@ body {
   align-items: center;
   justify-content: center;
   font-size: 24px;
+  overflow: hidden;
 }
 
 .foto-upload span { font-size: 12px; color: #6b7280; }
@@ -127,7 +128,7 @@ body {
 }
 
 /* ===========================
-   TIMER + BOTÕES LATERAIS
+   TIMER — botões NÃO fixos
 =========================== */
 .timer-wrapper {
   display: flex;
@@ -136,6 +137,7 @@ body {
   margin: 10px 0;
   height: 250px;
   gap: 15px;
+  position: relative;
 }
 
 .timer-box {
@@ -195,16 +197,16 @@ body {
   100% { transform: rotate(360deg); }
 }
 
-/* BOTÕES LATERAIS DO TIMER */
+/* ✅ BOTÕES LATERAIS — posição absoluta no canto direito da wrapper, não fixed */
 .timer-botoes {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  position: fixed;
+  position: absolute;
   right: 15px;
   top: 50%;
   transform: translateY(-50%);
-  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 10;
 }
 
 .timer-btn {
@@ -298,10 +300,68 @@ body {
 }
 
 .sala:active { transform: scale(0.98); }
-.sala-left { display: flex; flex-direction: column; }
-.sala-right { text-align: right; }
+.sala-left { display: flex; flex-direction: column; gap: 4px; }
+.sala-right { text-align: right; display: flex; flex-direction: column; gap: 4px; }
+
+.sala-premio {
+  color: #22c55e;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.sala-entrada {
+  color: #9ca3af;
+  font-size: 13px;
+}
+
 .green { color: #22c55e; font-weight: bold; }
 .red   { color: #ef4444; }
+
+/* ===========================
+   MODAL SALDO INSUFICIENTE
+=========================== */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+}
+
+.modal-box {
+  background: linear-gradient(145deg, #0f172a, #020617);
+  border-radius: 20px;
+  padding: 35px 25px;
+  width: 300px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 0 40px rgba(239,68,68,0.2);
+  animation: explode 0.3s ease;
+}
+
+.modal-icon {
+  font-size: 48px;
+  margin-bottom: 5px;
+}
+
+.modal-box h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #ef4444;
+}
+
+.modal-box p {
+  margin: 0;
+  color: #e5e7eb;
+  font-size: 15px;
+  line-height: 1.5;
+}
 
 /* ===========================
    ARENA
@@ -324,7 +384,6 @@ body {
   border-bottom: 1px solid rgba(255,255,255,0.05);
 }
 
-/* NOVO LAYOUT DA ARENA */
 .arena-layout {
   flex: 1;
   display: flex;
@@ -335,7 +394,6 @@ body {
   padding-bottom: 100px;
 }
 
-/* RANKING NO TOPO DA ARENA */
 .arena-ranking {
   width: 100%;
   max-width: 340px;
@@ -355,7 +413,6 @@ body {
   box-shadow: 0 0 8px rgba(34,197,94,0.4);
 }
 
-/* BOTÃO GRANDE NO CENTRO */
 .arena-center {
   position: relative;
   display: flex;
@@ -364,8 +421,7 @@ body {
 }
 
 #clickBtn, #clickBtnTreino {
-  width: 220px;
-  height: 220px;
+  width: 220px; height: 220px;
   border-radius: 50%;
   border: none;
   background: radial-gradient(circle, #3b82f6, #1d4ed8);
@@ -380,7 +436,7 @@ body {
 
 #clickBtnTreino {
   background: radial-gradient(circle, #22c55e, #16a34a);
-  box-shadow: 0 0 40px rgba(34,197,94,0.7), 0 0 80px rgba(34,197,94,0.3);
+  box-shadow: 0 0 40px rgba(34,197,94,0.7);
 }
 
 #clickBtn:active, #clickBtnTreino:active {
@@ -440,17 +496,33 @@ body {
 .resultado-box {
   text-align: center;
   background: #111827;
-  padding: 40px;
+  padding: 40px 30px;
   border-radius: 20px;
   animation: explode 0.5s ease;
   max-width: 320px;
   width: 90%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.resultado-box h1 { font-size: 28px; margin-bottom: 10px; }
+.resultado-box h1 { font-size: 28px; margin: 0; }
+
+.resultado-ganho {
+  font-size: 32px;
+  font-weight: bold;
+  color: #22c55e;
+  text-shadow: 0 0 20px rgba(34,197,94,0.8);
+  animation: pulsoGanho 0.6s ease infinite alternate;
+}
+
+@keyframes pulsoGanho {
+  from { transform: scale(1); }
+  to   { transform: scale(1.08); }
+}
 
 .resultado-box button {
-  margin-top: 20px;
+  margin-top: 10px;
   padding: 12px 25px;
   border: none;
   border-radius: 10px;
@@ -479,6 +551,18 @@ body {
   0%   { transform: scale(0.5); opacity: 0; }
   70%  { transform: scale(1.05); }
   100% { transform: scale(1); opacity: 1; }
+}
+
+/* Animações de vitória */
+@keyframes subirMoeda {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-150px) scale(1.5); }
+}
+
+@keyframes subirGanho {
+  0%   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  60%  { opacity: 1; transform: translateX(-50%) translateY(-40px); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-80px); }
 }
 
 #confete {
@@ -539,15 +623,8 @@ body {
   gap: 10px;
 }
 
-.chat-msg {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-}
-
-.chat-msg-eu {
-  flex-direction: row-reverse;
-}
+.chat-msg { display: flex; align-items: flex-end; gap: 8px; }
+.chat-msg-eu { flex-direction: row-reverse; }
 
 .chat-foto {
   width: 30px; height: 30px;
@@ -578,21 +655,9 @@ body {
   line-height: 1.4;
 }
 
-.bubble-outro {
-  background: #1f2937;
-  border-bottom-left-radius: 4px;
-}
-
-.bubble-eu {
-  background: #1d4ed8;
-  border-bottom-right-radius: 4px;
-}
-
-.chat-nome {
-  font-size: 11px;
-  color: #9ca3af;
-  margin-bottom: 3px;
-}
+.bubble-outro { background: #1f2937; border-bottom-left-radius: 4px; }
+.bubble-eu    { background: #1d4ed8; border-bottom-right-radius: 4px; }
+.chat-nome    { font-size: 11px; color: #9ca3af; margin-bottom: 3px; }
 
 .chat-input-area {
   display: flex;
@@ -622,9 +687,6 @@ body {
   color: white;
   font-size: 16px;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 /* ===========================
@@ -673,50 +735,34 @@ body {
 }
 
 .wallet-actions button {
-  flex: 1;
-  padding: 12px;
-  border-radius: 10px;
-  border: none;
-  font-weight: bold;
-  cursor: pointer;
-  transition: 0.2s;
+  flex: 1; padding: 12px;
+  border-radius: 10px; border: none;
+  font-weight: bold; cursor: pointer; transition: 0.2s;
 }
 
 .btn-depositar { background: linear-gradient(135deg, #22c55e, #16a34a); color: white; }
 .btn-sacar     { background: #111827; border: 1px solid #374151 !important; color: white; }
-.wallet-actions button:hover { transform: scale(1.03); }
 
 .wallet-card {
   background: rgba(255,255,255,0.03);
-  padding: 15px;
-  border-radius: 12px;
-  font-size: 12px;
-  color: #9ca3af;
+  padding: 15px; border-radius: 12px;
+  font-size: 12px; color: #9ca3af;
 }
 
 .wallet-card p { margin-top: 5px; font-size: 16px; color: white; letter-spacing: 2px; }
 
 .saque-sucesso {
-  color: #22c55e;
-  font-size: 13px;
-  text-align: center;
-  margin-top: 10px;
-  padding: 10px;
-  background: rgba(34,197,94,0.1);
-  border-radius: 8px;
+  color: #22c55e; font-size: 13px; text-align: center;
+  margin-top: 10px; padding: 10px;
+  background: rgba(34,197,94,0.1); border-radius: 8px;
 }
 
 .saque-erro { color: #ef4444; font-size: 13px; text-align: center; margin-top: 10px; }
 
 .pix-sucesso {
-  color: #22c55e;
-  font-weight: bold;
-  text-align: center;
-  font-size: 16px;
-  padding: 20px;
-  background: rgba(34,197,94,0.1);
-  border-radius: 10px;
-  margin-top: 10px;
+  color: #22c55e; font-weight: bold; text-align: center;
+  font-size: 16px; padding: 20px;
+  background: rgba(34,197,94,0.1); border-radius: 10px; margin-top: 10px;
 }
 
 @keyframes fadeUp {
@@ -728,105 +774,71 @@ body {
    MODAIS DEPÓSITO / SAQUE
 =========================== */
 #modalDeposito, #modalSaque {
-  position: fixed;
-  top: 0; left: 0;
+  position: fixed; top: 0; left: 0;
   width: 100%; height: 100%;
   background: rgba(0,0,0,0.75);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   z-index: 9999;
 }
 
 .deposito-box {
   background: linear-gradient(145deg, #0f172a, #020617);
-  padding: 25px;
-  border-radius: 20px;
-  width: 320px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  padding: 25px; border-radius: 20px; width: 320px;
+  display: flex; flex-direction: column; gap: 12px;
   box-shadow: 0 0 40px rgba(37,99,235,0.25);
   animation: fadeUp 0.3s ease;
 }
 
 .deposito-box input {
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid #1f2937;
-  background: #111827;
-  color: white;
-  outline: none;
-  font-size: 15px;
+  padding: 12px; border-radius: 10px;
+  border: 1px solid #1f2937; background: #111827;
+  color: white; outline: none; font-size: 15px;
 }
 
 .deposito-box button {
-  padding: 12px;
-  border-radius: 10px;
-  border: none;
-  cursor: pointer;
-  font-weight: bold;
-  font-size: 15px;
+  padding: 12px; border-radius: 10px; border: none;
+  cursor: pointer; font-weight: bold; font-size: 15px;
 }
 
 .deposito-box button:first-of-type { background: linear-gradient(135deg, #22c55e, #16a34a); color: white; }
 .deposito-box button:last-of-type  { background: #1f2937; color: white; }
 
 .btn-copiar {
-  width: 100%;
-  margin-top: 10px;
-  padding: 12px;
-  border-radius: 10px;
-  border: none;
+  width: 100%; margin-top: 10px; padding: 12px;
+  border-radius: 10px; border: none;
   background: linear-gradient(135deg, #00ff88, #00cc66);
-  color: #000;
-  font-weight: bold;
-  cursor: pointer;
+  color: #000; font-weight: bold; cursor: pointer;
 }
 
 #pixContainer {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  margin-top: 10px;
+  display: flex; flex-direction: column;
+  align-items: center; text-align: center; margin-top: 10px;
 }
 
 .feedback-sucesso {
-  margin-top: 10px;
-  text-align: center;
-  color: #00ff88;
-  font-weight: bold;
+  margin-top: 10px; text-align: center;
+  color: #00ff88; font-weight: bold;
 }
 
 /* ===========================
    HISTÓRICO
 =========================== */
 .btn-historico {
-  width: 100%;
-  margin: 10px 0 20px 0;
-  padding: 12px;
+  width: 100%; margin: 10px 0 20px 0; padding: 12px;
   border-radius: 12px;
   background: linear-gradient(135deg, #111827, #1f2937);
   border: 1px solid rgba(255,255,255,0.08);
-  color: #e5e7eb;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  color: #e5e7eb; font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: all 0.2s ease;
 }
 
 /* ===========================
    MONEY ANIMATION
 =========================== */
 .money {
-  position: fixed;
-  color: #22c55e;
-  font-weight: bold;
+  position: fixed; color: #22c55e; font-weight: bold;
   animation: subirDinheiro 1s ease forwards;
-  font-size: 20px;
-  pointer-events: none;
-  z-index: 9999;
+  font-size: 20px; pointer-events: none; z-index: 9999;
 }
 
 @keyframes subirDinheiro {
@@ -838,32 +850,25 @@ body {
    MENU LATERAL
 =========================== */
 .menu-lateral {
-  position: fixed;
-  top: 0; left: 0;
+  position: fixed; top: 0; left: 0;
   width: 260px; height: 100%;
   background: #0b0f1a;
   box-shadow: 5px 0 20px rgba(0,0,0,0.5);
-  padding: 20px;
-  z-index: 2000;
+  padding: 20px; z-index: 2000;
   animation: slideIn 0.3s ease;
 }
 
 .menu-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
+  display: flex; justify-content: space-between;
+  align-items: center; margin-bottom: 20px;
 }
 
 .menu-header span { cursor: pointer; font-size: 20px; }
 
 .menu-item {
-  padding: 15px;
-  margin-bottom: 10px;
-  border-radius: 10px;
-  cursor: pointer;
-  background: #111827;
-  transition: 0.3s;
+  padding: 15px; margin-bottom: 10px;
+  border-radius: 10px; cursor: pointer;
+  background: #111827; transition: 0.3s;
 }
 
 .menu-item:hover { background: #1f2937; }
@@ -877,30 +882,20 @@ body {
    TELA GENÉRICA
 =========================== */
 .tela {
-  position: fixed;
-  top: 0; left: 0;
+  position: fixed; top: 0; left: 0;
   width: 100%; height: 100%;
-  background: #0b0f1a;
-  z-index: 9999;
-  overflow-y: auto;
+  background: #0b0f1a; z-index: 9999; overflow-y: auto;
 }
 
 .tela-box {
-  width: 100%;
-  min-height: 100%;
-  background: #0b0f1a;
-  color: white;
-  display: flex;
-  flex-direction: column;
-  padding-bottom: 30px;
+  width: 100%; min-height: 100%;
+  background: #0b0f1a; color: white;
+  display: flex; flex-direction: column; padding-bottom: 30px;
 }
 
 .tela-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 15px;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  display: flex; align-items: center; gap: 10px;
+  padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 
 .btn-voltar { font-size: 22px; cursor: pointer; padding: 5px 10px; }
@@ -912,47 +907,36 @@ body {
 .perfil-box { max-width: 500px; margin: auto; text-align: center; }
 
 .perfil-header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin: 20px 0;
+  display: flex; flex-direction: column;
+  align-items: center; margin: 20px 0;
 }
 
 .perfil-avatar {
   width: 80px; height: 80px;
   background: linear-gradient(135deg, #1e293b, #0f172a);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 30px;
-  cursor: pointer;
+  border-radius: 50%; display: flex;
+  align-items: center; justify-content: center;
+  font-size: 30px; cursor: pointer;
   border: 2px dashed #374151;
 }
 
 .perfil-foto-img {
   width: 80px; height: 80px;
-  border-radius: 50%;
-  object-fit: cover;
-  cursor: pointer;
-  border: 2px solid #22c55e;
+  border-radius: 50%; object-fit: cover;
+  cursor: pointer; border: 2px solid #22c55e;
 }
 
 .perfil-saldo {
-  background: #020617;
-  border-radius: 14px;
-  padding: 15px;
-  margin: 0 20px 20px;
+  background: #020617; border-radius: 14px;
+  padding: 15px; margin: 0 20px 20px;
 }
 
 .perfil-saldo span { opacity: 0.6; font-size: 13px; }
 .perfil-saldo h1   { margin: 5px 0 0; color: #22c55e; }
 
 .perfil-stats {
-  display: flex;
-  justify-content: space-between;
-  margin: 0 20px 20px;
-  gap: 10px;
+  display:  flex; justify-content: space-between;
+  margin: 0 20px 20px; gap: 10px;
 }
 
 .stat { background: #0f172a; padding: 10px; border-radius: 12px; flex: 1; }
@@ -962,15 +946,10 @@ body {
 .perfil-actions { display: flex; flex-direction: column; padding: 0 20px; gap: 10px; }
 
 .input-nome {
-  background: transparent;
-  border: none;
-  color: white;
-  font-size: 18px;
-  text-align: center;
+  background: transparent; border: none; color: white;
+  font-size: 18px; text-align: center;
   border-bottom: 1px solid #334155;
-  margin: 8px 0 5px;
-  padding: 5px;
-  width: 200px;
+  margin: 8px 0 5px; padding: 5px; width: 200px;
 }
 
 .input-nome:focus { outline: none; border-bottom: 1px solid #22c55e; }
@@ -979,77 +958,114 @@ body {
    BOTÕES GERAIS
 =========================== */
 .btn-primary {
-  width: 100%;
-  padding: 14px;
-  border-radius: 14px;
-  border: none;
+  width: 100%; padding: 14px; border-radius: 14px; border: none;
   background: linear-gradient(135deg, #22c55e, #4ade80);
-  color: white;
-  font-weight: 600;
-  font-size: 15px;
-  cursor: pointer;
-  transition: 0.2s;
+  color: white; font-weight: 600; font-size: 15px;
+  cursor: pointer; transition: 0.2s;
 }
 
 .btn-primary:active { transform: scale(0.97); }
 
 .btn-secondary {
-  width: 100%;
-  padding: 14px;
-  border-radius: 14px;
-  border: none;
-  background: #1e293b;
-  color: #cbd5e1;
-  font-weight: 500;
-  font-size: 15px;
-  cursor: pointer;
-  transition: 0.2s;
+  width: 100%; padding: 14px; border-radius: 14px; border: none;
+  background: #1e293b; color: #cbd5e1;
+  font-weight: 500; font-size: 15px; cursor: pointer; transition: 0.2s;
 }
 
 /* ===========================
-   LOGO
+   LOGO — sem bolinha no i
 =========================== */
-.i-custom { color: rgb(253,252,253); position: relative; }
-
-.i-custom::after {
-  content: '';
-  position: absolute;
-  width: 7px; height: 11px;
-  border-radius: 50%;
-  background: #2533fb;
-  top: -2px; left: 50%;
-  transform: translateX(-50%);
+.i-custom {
+  color: rgb(253,252,253);
+  position: relative;
 }
 
+/* ✅ bolinha removida */
+/* .i-custom::after removido conforme solicitado */
 
 /* ===========================
    CONFIG
 =========================== */
 .config-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: #0f172a;
-  padding: 12px;
-  border-radius: 12px;
-  margin-bottom: 10px;
+  display: flex; justify-content: space-between;
+  align-items: center; background: #0f172a;
+  padding: 12px; border-radius: 12px; margin-bottom: 10px;
 }
 
 .config-item span { font-size: 14px; }
 .config-item input { transform: scale(1.3); }
 
 textarea {
-  width: 100%;
-  height: 120px;
-  border-radius: 12px;
-  border: none;
-  padding: 12px;
-  background: #0f172a;
-  color: white;
-  resize: none;
-  margin-bottom: 15px;
-  font-size: 14px;
-  box-sizing: border-box;
+  width: 100%; height: 120px; border-radius: 12px;
+  border: none; padding: 12px; background: #0f172a;
+  color: white; resize: none; margin-bottom: 15px;
+  font-size: 14px; box-sizing: border-box;
 }
 
 textarea:focus { outline: 2px solid #22c55e; }
+
+/* ===========================
+   PWA INSTALL BANNER
+=========================== */
+.pwa-banner {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  border-top: 1px solid rgba(59,130,246,0.3);
+  padding: 15px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  z-index: 8000;
+  animation: slideUp 0.4s ease;
+}
+
+.pwa-banner-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.pwa-banner-icon {
+  font-size: 32px;
+}
+
+.pwa-banner-texto strong {
+  display: block;
+  font-size: 15px;
+  color: white;
+}
+
+.pwa-banner-texto span {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.pwa-banner-acoes {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-instalar {
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: white;
+  font-weight: bold;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-fechar-pwa {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: none;
+  background: #374151;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+}

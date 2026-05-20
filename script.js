@@ -33,6 +33,7 @@ function previewFoto(event) {
     preview.style.backgroundImage = `url(${fotoBase64})`;
     preview.style.backgroundSize = "cover";
     preview.style.backgroundPosition = "center";
+    preview.style.borderRadius = "50%";
     preview.innerText = "";
   };
   reader.readAsDataURL(file);
@@ -130,7 +131,7 @@ function iniciarJogo() {
   saldo = usuarioLogado.saldo || 0;
 
   atualizarSaldo();
-  renderRanking();
+  iniciarBotsSalas();
   renderSalas();
   iniciarTimer();
   buscarSaldo();
@@ -139,7 +140,6 @@ function iniciarJogo() {
   setInterval(buscarSaldo, 5000);
   setInterval(buscarRankingDiario, 10000);
 
-  // inicia polling do chat quando aberto
   configurarClickBtn();
   configurarClickBtnTreino();
 }
@@ -156,7 +156,6 @@ let timerInterval = null;
 let botInterval = null;
 let posicaoAnterior = null;
 let treinoInterval = null;
-let treinoBot = null;
 let treinoCliquesCount = 0;
 let treinoTempo = 30;
 
@@ -178,26 +177,95 @@ let saldo = 0;
 let tempoGlobal = 30;
 let cliques = 0;
 let tempo = 30;
+let salaAtual = null;
+
+// =============================
+// 🤖 BOTS DAS SALAS (nomes reais)
+// =============================
+
+const nomesBot = [
+  "Carlos Mendes", "Ana Lima", "Pedro Costa", "Julia Rocha",
+  "Rafael Souza", "Fernanda Dias", "Lucas Oliveira", "Beatriz Nunes",
+  "Thiago Alves", "Camila Ferreira", "Bruno Santos", "Larissa Gomes",
+  "Diego Martins", "Leticia Carvalho", "Mateus Ribeiro", "Vanessa Pereira",
+  "Felipe Araujo", "Isabela Castro", "Gustavo Lima", "Patricia Moura"
+];
+
+// URLs de fotos reais de pessoas (via UI Faces / randomuser)
+const fotosBot = [
+  "https://randomuser.me/api/portraits/men/32.jpg",
+  "https://randomuser.me/api/portraits/women/44.jpg",
+  "https://randomuser.me/api/portraits/men/15.jpg",
+  "https://randomuser.me/api/portraits/women/28.jpg",
+  "https://randomuser.me/api/portraits/men/67.jpg",
+  "https://randomuser.me/api/portraits/women/55.jpg",
+  "https://randomuser.me/api/portraits/men/41.jpg",
+  "https://randomuser.me/api/portraits/women/19.jpg",
+  "https://randomuser.me/api/portraits/men/88.jpg",
+  "https://randomuser.me/api/portraits/women/72.jpg",
+  "https://randomuser.me/api/portraits/men/23.jpg",
+  "https://randomuser.me/api/portraits/women/36.jpg",
+  "https://randomuser.me/api/portraits/men/51.jpg",
+  "https://randomuser.me/api/portraits/women/61.jpg",
+  "https://randomuser.me/api/portraits/men/77.jpg",
+  "https://randomuser.me/api/portraits/women/83.jpg",
+  "https://randomuser.me/api/portraits/men/5.jpg",
+  "https://randomuser.me/api/portraits/women/9.jpg",
+  "https://randomuser.me/api/portraits/men/99.jpg",
+  "https://randomuser.me/api/portraits/women/47.jpg",
+];
 
 const salas = [
-  { nome: "Bronze", jogadores: 11, max: 3, valor: 2, tempo: 30, status: "aguardando", emJogo: false },
-  { nome: "Prata", jogadores: 10, max: 5, valor: 5, tempo: 30, status: "aguardando", emJogo: false },
-  { nome: "Ouro", jogadores: 12, max: 10, valor: 10, tempo: 30, status: "aguardando", emJogo: false },
-  { nome: "Diamante", jogadores: 17, max: 10, valor: 20, tempo: 30, status: "aguardando", emJogo: false },
+  { nome: "Bronze", jogadores: 0, max: 40, valor: 2, tempo: 30, status: "aguardando", emJogo: false, bots: [] },
+  { nome: "Prata",  jogadores: 0, max: 40, valor: 5, tempo: 30, status: "aguardando", emJogo: false, bots: [] },
+  { nome: "Ouro",   jogadores: 0, max: 40, valor: 10, tempo: 30, status: "aguardando", emJogo: false, bots: [] },
+  { nome: "Diamante", jogadores: 0, max: 40, valor: 20, tempo: 30, status: "aguardando", emJogo: false, bots: [] },
 ];
 
 const grupoA = [0, 1];
 const grupoB = [2, 3];
 let grupoAtual = "A";
 
-let bots = [
-  { nome: "Renato Enio", score: 0, ritmo: 2 },
-  { nome: "Rodrigo Silva", score: 0, ritmo: 1.5 },
-  { nome: "Wellington Junior", score: 0, ritmo: 2 },
-];
+// bots da arena de combate
+let botsArena = [];
+
+function gerarBotsParaSala(sala) {
+  const qtd = Math.floor(Math.random() * 11) + 7; // 7 a 17
+  const indices = [];
+  while (indices.length < qtd) {
+    const i = Math.floor(Math.random() * nomesBot.length);
+    if (!indices.includes(i)) indices.push(i);
+  }
+  sala.bots = indices.map(i => ({
+    nome: nomesBot[i],
+    foto: fotosBot[i],
+    score: 0
+  }));
+  sala.jogadores = sala.bots.length;
+}
+
+function iniciarBotsSalas() {
+  salas.forEach(sala => gerarBotsParaSala(sala));
+  // simula entrada gradual de bots
+  salas.forEach(sala => {
+    const totalBots = sala.bots.length;
+    sala.jogadores = Math.floor(totalBots * 0.4); // começa com 40%
+    let adicionados = sala.jogadores;
+
+    const entrar = setInterval(() => {
+      if (adicionados >= totalBots || sala.emJogo) {
+        clearInterval(entrar);
+        return;
+      }
+      adicionados++;
+      sala.jogadores = adicionados;
+      renderSalas();
+    }, Math.random() * 3000 + 1000);
+  });
+}
 
 // =============================
-// 🔊 ÁUDIO + SOM ON/OFF
+// 🔊 ÁUDIO
 // =============================
 
 document.addEventListener("click", () => {
@@ -282,7 +350,7 @@ function somVitoria() {
 }
 
 // =============================
-// 🛡️ ANTI-BOT
+// 🛡️ ANTI-BOT — 1 clique por vez
 // =============================
 
 setInterval(() => {
@@ -302,7 +370,7 @@ function cliqueValido() {
     for (let i = 1; i < historicoCliques.length; i++) {
       intervalos.push(historicoCliques[i] - historicoCliques[i - 1]);
     }
-    const todosIguais = intervalos.every(i => Math.abs(i - intervalos[0]) < 5);
+    const todosIguais = intervalos.every(v => Math.abs(v - intervalos[0]) < 5);
     if (todosIguais) { console.log("🚨 Bot detectado"); return false; }
   }
   return true;
@@ -314,7 +382,6 @@ function cliqueValido() {
 
 let chatAberto = false;
 let chatInterval = null;
-let ultimaMensagemId = null;
 
 function abrirChat() {
   document.getElementById("chatGlobal").classList.remove("hidden");
@@ -334,18 +401,14 @@ async function carregarMensagens() {
     const res = await fetch(`${window.location.origin}/chat`);
     if (!res.ok) return;
     const mensagens = await res.json();
-
     const container = document.getElementById("chatMensagens");
     const eraEmbaixo = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
-
     container.innerHTML = "";
-
     mensagens.forEach(m => {
       const souEu = usuarioLogado && m.user_id === usuarioLogado.id;
       const foto = m.foto_url
         ? `<img src="${m.foto_url}" class="chat-foto" />`
         : `<div class="chat-avatar">${m.nome.charAt(0).toUpperCase()}</div>`;
-
       container.innerHTML += `
         <div class="chat-msg ${souEu ? "chat-msg-eu" : ""}">
           ${!souEu ? foto : ""}
@@ -357,7 +420,6 @@ async function carregarMensagens() {
         </div>
       `;
     });
-
     if (eraEmbaixo) container.scrollTop = container.scrollHeight;
   } catch(e) {}
 }
@@ -366,9 +428,7 @@ async function enviarMensagem() {
   const input = document.getElementById("chatInput");
   const msg = input.value.trim();
   if (!msg || !usuarioLogado) return;
-
   input.value = "";
-
   try {
     await fetch(`${window.location.origin}/chat`, {
       method: "POST",
@@ -384,15 +444,12 @@ async function enviarMensagem() {
   } catch(e) {}
 }
 
-// envia com Enter
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && chatAberto) {
-    enviarMensagem();
-  }
+  if (e.key === "Enter" && chatAberto) enviarMensagem();
 });
 
 // =============================
-// 🏋️ ARENA DE TREINO
+// 🏋️ TREINO
 // =============================
 
 function abrirTreino() {
@@ -412,24 +469,19 @@ function fecharTreino() {
 function iniciarTreino() {
   clearInterval(treinoInterval);
   treinoTempo = 30;
-
   treinoInterval = setInterval(() => {
     treinoTempo--;
     const el = document.getElementById("treinoTimer");
     if (el) el.innerText = treinoTempo + "s";
-
     if (treinoTempo <= 0) {
       clearInterval(treinoInterval);
-      const resultado = treinoCliquesCount;
       document.getElementById("arenaTreino").classList.add("hidden");
-
-      // mostra resultado do treino
       const titulo = document.getElementById("resultadoTitulo");
       const texto = document.getElementById("resultadoTexto");
       titulo.classList.remove("vitoria", "derrota");
       titulo.classList.add("vitoria");
       titulo.innerText = "🏋️ TREINO CONCLUÍDO";
-      texto.innerText = `Você fez ${resultado} cliques! Continue treinando.`;
+      texto.innerText = `Você fez ${treinoCliquesCount} cliques! Continue treinando.`;
       document.getElementById("resultado").classList.remove("hidden");
     }
   }, 1000);
@@ -438,22 +490,15 @@ function iniciarTreino() {
 function configurarClickBtnTreino() {
   const btn = document.getElementById("clickBtnTreino");
   if (!btn) return;
-
   btn.addEventListener("click", () => {
     if (treinoTempo <= 0) return;
     if (!cliqueValido()) return;
-
     treinoCliquesCount++;
     somClick();
-
     const el = document.getElementById("treinoCliques");
     if (el) el.innerText = treinoCliquesCount;
-
-    const max = 200;
-    const pct = Math.min((treinoCliquesCount / max) * 100, 100);
     const barra = document.getElementById("treino-barra");
-    if (barra) barra.style.width = pct + "%";
-
+    if (barra) barra.style.width = Math.min((treinoCliquesCount / 200) * 100, 100) + "%";
     const plus = document.createElement("div");
     plus.innerText = "+1";
     plus.className = "plus";
@@ -482,7 +527,6 @@ async function buscarRankingDiario() {
 function renderRanking() {
   const div = document.getElementById("ranking");
   if (!div) return;
-
   div.innerHTML = "<h3>🏆 Top jogadores hoje</h3>";
 
   if (!rankingDiario.length) {
@@ -498,7 +542,6 @@ function renderRanking() {
     const foto = j.foto_url
       ? `<img src="${j.foto_url}" class="rank-foto" />`
       : `<div class="rank-avatar">${j.nome.charAt(0).toUpperCase()}</div>`;
-
     div.innerHTML += `
       <div class="rank-card ${classes[i]}">
         <div class="rank-left">
@@ -521,7 +564,6 @@ function renderRanking() {
       const foto = eu.foto_url
         ? `<img src="${eu.foto_url}" class="rank-foto" />`
         : `<div class="rank-avatar">${eu.nome.charAt(0).toUpperCase()}</div>`;
-
       div.innerHTML += `
         <div class="rank-separador">• • •</div>
         <div class="rank-card voce-rank">
@@ -541,8 +583,13 @@ function renderRanking() {
 }
 
 // =============================
-// 🚪 SALAS
+// 🚪 SALAS com taxa de 30%
 // =============================
+
+function calcularPremio(sala) {
+  const total = sala.jogadores * sala.valor;
+  return (total * 0.7).toFixed(2); // 70% para o vencedor
+}
 
 function renderSalas() {
   const div = document.getElementById("salas");
@@ -550,7 +597,7 @@ function renderSalas() {
   div.innerHTML = "";
 
   salas.forEach(sala => {
-    const premio = sala.jogadores * sala.valor;
+    const premio = calcularPremio(sala);
     div.innerHTML += `
       <div class="sala" onclick="entrarSala('${sala.nome}')">
         <div class="sala-left">
@@ -558,8 +605,8 @@ function renderSalas() {
           <span>${sala.jogadores}/${sala.max} jogadores</span>
         </div>
         <div class="sala-right">
-          <div class="green">R$ ${premio}</div>
-          <div>Entrada R$${sala.valor}</div>
+          <div class="sala-premio">🏆 R$ ${premio}</div>
+          <div class="sala-entrada">Entrada: R$ ${sala.valor}</div>
           <div class="${sala.status === 'jogando' ? 'red' : 'green'}">
             ${sala.status === 'jogando'
               ? '🔥 Em jogo (' + sala.tempo + 's)'
@@ -575,14 +622,57 @@ function entrarSala(nome) {
   pararSomAmbiente();
   const sala = salas.find(s => s.nome === nome);
   if (sala.status === "jogando") return;
+
   if (saldo < sala.valor) {
-    alert("Saldo insuficiente. Deposite para jogar!");
+    mostrarModalSaldoInsuficiente(sala.valor);
     return;
   }
+
+  salaAtual = sala;
   saldo -= sala.valor;
   atualizarSaldo();
+
+  // prepara bots da arena com scores zerados
+  botsArena = sala.bots.map(b => ({
+    nome: b.nome,
+    foto: b.foto,
+    score: 0,
+    // cliques finais entre 292 e 319
+    alvo: Math.floor(Math.random() * 28) + 292
+  }));
+
   document.getElementById("arena").classList.remove("hidden");
   iniciarArena();
+}
+
+// =============================
+// 💸 MODAL SALDO INSUFICIENTE
+// =============================
+
+function mostrarModalSaldoInsuficiente(valorNecessario) {
+  const modal = document.createElement("div");
+  modal.id = "modalSaldoInsuficiente";
+  modal.className = "modal-overlay";
+  modal.innerHTML = `
+    <div class="modal-box">
+      <div class="modal-icon">💰</div>
+      <h2>Saldo insuficiente</h2>
+      <p>Você precisa de <strong>R$ ${valorNecessario.toFixed(2)}</strong> para entrar nesta sala.</p>
+      <p style="color:#6b7280; font-size:13px;">Seu saldo atual: R$ ${saldo.toFixed(2)}</p>
+      <button class="btn-primary" onclick="fecharModalSaldo(); abrirWallet(); depositar();">
+        💳 Depositar agora
+      </button>
+      <button class="btn-secondary" style="margin-top:8px" onclick="fecharModalSaldo()">
+        Fechar
+      </button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+function fecharModalSaldo() {
+  const modal = document.getElementById("modalSaldoInsuficiente");
+  if (modal) modal.remove();
 }
 
 // =============================
@@ -592,8 +682,9 @@ function entrarSala(nome) {
 function iniciarArena() {
   cliques = 0;
   tempo = 30;
-  bots.forEach(bot => bot.score = 0);
   posicaoAnterior = null;
+
+  botsArena.forEach(bot => { bot.score = 0; });
 
   atualizarRankingArena();
   clearInterval(timerInterval);
@@ -615,10 +706,11 @@ function iniciarArena() {
     }
   }, 1000);
 
+  // bots progridem para atingir alvo em 30s
   botInterval = setInterval(() => {
-    bots.forEach(bot => {
-      bot.score += bot.ritmo + Math.random() * 2;
-      if (Math.random() > 0.9) bot.score += 10;
+    botsArena.forEach(bot => {
+      const progresso = bot.alvo / 60; // em 30s com 2 updates/s
+      bot.score = Math.min(bot.score + progresso + Math.random() * 1.5, bot.alvo);
     });
     atualizarRankingArena();
   }, 500);
@@ -627,8 +719,8 @@ function iniciarArena() {
 function atualizarRankingArena() {
   const nomeJogador = usuarioLogado ? usuarioLogado.nome : "VOCÊ";
   let jogadores = [
-    { nome: nomeJogador, score: cliques },
-    ...bots
+    { nome: nomeJogador, score: cliques, foto: usuarioLogado ? usuarioLogado.foto_url : null },
+    ...botsArena.map(b => ({ nome: b.nome, score: b.score, foto: b.foto }))
   ];
 
   jogadores.sort((a, b) => b.score - a.score);
@@ -644,10 +736,14 @@ function atualizarRankingArena() {
 
   jogadores.slice(0, 4).forEach((j, i) => {
     const eVoce = j.nome === nomeJogador;
+    const fotoEl = j.foto
+      ? `<img src="${j.foto}" class="rank-foto" style="width:24px;height:24px;margin-right:6px;" />`
+      : `<div class="rank-avatar" style="width:24px;height:24px;font-size:10px;margin-right:6px;">${j.nome.charAt(0)}</div>`;
+
     div.innerHTML += `
       <div class="rank-player ${eVoce ? "voce" : ""}">
-        <div style="display:flex; justify-content:space-between; font-size:13px;">
-          <span>${i + 1}º ${j.nome}</span>
+        <div style="display:flex; justify-content:space-between; font-size:13px; align-items:center;">
+          <div style="display:flex;align-items:center;">${fotoEl}<span>${i + 1}º ${j.nome}</span></div>
           <span>${Math.floor(j.score)}</span>
         </div>
         <div class="barra">
@@ -658,6 +754,8 @@ function atualizarRankingArena() {
   });
 }
 
+
+// ✅ CLIQUE — apenas +1 por clique
 function configurarClickBtn() {
   const btn = document.getElementById("clickBtn");
   if (!btn) return;
@@ -677,19 +775,17 @@ function configurarClickBtn() {
     .then(data => { if (!data.ok) return; })
     .catch(err => console.log("Erro no click:", err));
 
-    if (agora - ultimoClique < 300) combo++;
-    else combo = 1;
     ultimoClique = agora;
 
-    let ganho = combo >= 5 ? 2 : 1;
+    // ✅ sempre +1, sem combo duplicado
     somClick();
-    cliques += ganho;
+    cliques += 1;
 
     const plus = document.createElement("div");
-    plus.innerText = combo >= 5 ? `+${ganho} 🔥` : `+${ganho}`;
+    plus.innerText = "+1";
     plus.className = "plus";
-    plus.style.left = "50%";
-    plus.style.top = "50%";
+    plus.style.left = Math.random() * 60 + 20 + "%";
+    plus.style.top = "30%";
     document.getElementById("clickArea").appendChild(plus);
     setTimeout(() => plus.remove(), 800);
 
@@ -698,38 +794,104 @@ function configurarClickBtn() {
 }
 
 // =============================
-// 🏁 RESULTADO
+// 🏁 RESULTADO + ANIMAÇÃO VITÓRIA
 // =============================
 
 function mostrarResultado() {
   somVitoria();
 
   const nomeJogador = usuarioLogado ? usuarioLogado.nome : "VOCÊ";
-  let jogadores = [{ nome: nomeJogador, score: cliques }, ...bots];
+  let jogadores = [
+    { nome: nomeJogador, score: cliques },
+    ...botsArena.map(b => ({ nome: b.nome, score: b.score }))
+  ];
   jogadores.sort((a, b) => b.score - a.score);
 
   const posicao = jogadores.findIndex(j => j.nome === nomeJogador) + 1;
   const titulo = document.getElementById("resultadoTitulo");
   const texto = document.getElementById("resultadoTexto");
+  const ganhoEl = document.getElementById("resultadoGanho");
 
   titulo.classList.remove("vitoria", "derrota");
 
-  if (posicao === 1) {
-    titulo.innerText = "VOCÊ VENCEU 🚀🔥";
-    texto.innerText = "DOMINOU A PARTIDA!";
+  if (posicao === 1 && salaAtual) {
+    const premio = parseFloat(calcularPremio(salaAtual));
+
+    // atualiza saldo
+    saldo += premio;
+    atualizarSaldo();
+
+    // salva no servidor
+    fetch(`${window.location.origin}/creditar-vitoria`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: usuarioLogado.id, valor: premio })
+    }).catch(() => {});
+
+    titulo.innerText = "VOCÊ VENCEU! 🚀🔥";
     titulo.classList.add("vitoria");
+    if (ganhoEl) {
+      ganhoEl.innerText = `+R$ ${premio.toFixed(2)}`;
+      ganhoEl.classList.remove("hidden");
+    }
+
     soltarConfete();
+    animarPremio(premio);
+
   } else {
     titulo.innerText = `${posicao}º LUGAR`;
-    texto.innerText = "Você quase chegou lá!";
+    texto.innerText = "Você quase chegou lá! Tente novamente.";
     titulo.classList.add("derrota");
+    if (ganhoEl) ganhoEl.classList.add("hidden");
   }
 
   document.getElementById("resultado").classList.remove("hidden");
 }
 
+function animarPremio(valor) {
+  // moedas subindo
+  for (let i = 0; i < 8; i++) {
+    setTimeout(() => {
+      const moeda = document.createElement("div");
+      moeda.innerText = "💰";
+      moeda.style.cssText = `
+        position: fixed;
+        font-size: 28px;
+        left: ${Math.random() * 80 + 10}%;
+        bottom: 20%;
+        animation: subirMoeda 1.2s ease forwards;
+        z-index: 10000;
+        pointer-events: none;
+      `;
+      document.body.appendChild(moeda);
+      setTimeout(() => moeda.remove(), 1200);
+    }, i * 150);
+  }
+
+  // texto de ganho voando
+  const ganho = document.createElement("div");
+  ganho.innerText = `+R$ ${valor.toFixed(2)}`;
+  ganho.style.cssText = `
+    position: fixed;
+    left: 50%;
+    top: 40%;
+    transform: translateX(-50%);
+    color: #22c55e;
+    font-size: 36px;
+    font-weight: bold;
+    text-shadow: 0 0 20px #22c55e;
+    animation: subirGanho 2s ease forwards;
+    z-index: 10000;
+    pointer-events: none;
+  `;
+  document.body.appendChild(ganho);
+  setTimeout(() => ganho.remove(), 2000);
+}
+
 function fecharResultado() {
   document.getElementById("resultado").classList.add("hidden");
+  const ganhoEl = document.getElementById("resultadoGanho");
+  if (ganhoEl) ganhoEl.classList.add("hidden");
 }
 
 function soltarConfete() {
@@ -801,6 +963,8 @@ function iniciarSalas(grupo) {
         sala.status = "aguardando";
         sala.emJogo = false;
         sala.tempo = 30;
+        gerarBotsParaSala(sala); // renova bots
+        renderSalas();
       }
     }, 1000);
   });
@@ -870,14 +1034,12 @@ async function confirmarSaque() {
       body: JSON.stringify({ valor, userId: usuarioLogado.id, chave_pix: chave })
     });
     const data = await res.json();
-
     if (!res.ok) {
       msgEl.innerText = data.erro || "Erro ao solicitar saque";
       msgEl.className = "saque-erro";
       msgEl.classList.remove("hidden");
       return;
     }
-
     saldo -= valor;
     atualizarSaldo();
     msgEl.innerText = data.mensagem;
@@ -911,14 +1073,13 @@ async function confirmarDeposito() {
     });
 
     if (!res.ok) {
-      const erro = await res.text();
-      container.innerHTML = `<p style="color:red">${erro}</p>`;
+      container.innerHTML = `<p style="color:red">Erro ao gerar PIX</p>`;
       return;
     }
 
     const data = await res.json();
 
-    container.innerHTML = `
+container.innerHTML = `
       <img src="data:image/png;base64,${data.qr_base64}" style="width:200px; margin-top:10px; border-radius:10px;">
       <button onclick="copiarPix('${data.qr_code}')" class="btn-copiar">📋 Copiar PIX</button>
       <div id="feedbackPix" class="hidden"></div>
@@ -996,7 +1157,6 @@ async function verHistorico() {
   const res = await fetch(`${window.location.origin}/historico/${usuarioLogado.id}`);
   const dados = await res.json();
   const area = document.getElementById("historicoArea");
-
   if (!dados.length) {
     area.innerHTML = "<p style='text-align:center;'>Nenhuma transação ainda</p>";
   } else {
@@ -1069,7 +1229,6 @@ function trocarFotoPerfil() {
 async function atualizarFotoPerfil(event) {
   const file = event.target.files[0];
   if (!file || !usuarioLogado) return;
-
   const reader = new FileReader();
   reader.onload = async (e) => {
     try {
@@ -1096,7 +1255,7 @@ function salvarNome() {
     if (usuarioLogado) usuarioLogado.nome = input.value;
     salvarPerfil();
     localStorage.setItem("usuario", JSON.stringify(usuarioLogado));
-    alert("Nome salvo!");
+    fecharTela();
   }
 }
 
@@ -1130,7 +1289,7 @@ function abrirReclamacoes() {
         <h2>Reclamações</h2>
       </div>
       <div class="tela-content">
-        <p class="reclamacao-sub">Descreva sua reclamação abaixo:</p>
+        <p>Descreva sua reclamação abaixo:</p>
         <textarea placeholder="Escreva aqui..."></textarea>
         <button class="btn-primary">Enviar</button>
       </div>
