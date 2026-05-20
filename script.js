@@ -5,7 +5,6 @@
 let usuarioLogado = null;
 let fotoBase64 = null;
 
-// Verifica se já tem sessão salva
 window.addEventListener("DOMContentLoaded", () => {
   const sessao = localStorage.getItem("usuario");
   if (sessao) {
@@ -27,7 +26,6 @@ function mostrarLogin() {
 function previewFoto(event) {
   const file = event.target.files[0];
   if (!file) return;
-
   const reader = new FileReader();
   reader.onload = (e) => {
     fotoBase64 = e.target.result;
@@ -53,7 +51,6 @@ async function fazerCadastro() {
     erroEl.classList.remove("hidden");
     return;
   }
-
   if (senha.length < 6) {
     erroEl.innerText = "A senha precisa ter pelo menos 6 caracteres";
     erroEl.classList.remove("hidden");
@@ -66,19 +63,15 @@ async function fazerCadastro() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ nome, email, senha, foto_base64: fotoBase64 })
     });
-
     const data = await res.json();
-
     if (!res.ok) {
       erroEl.innerText = data.erro || "Erro ao criar conta";
       erroEl.classList.remove("hidden");
       return;
     }
-
     usuarioLogado = data.usuario;
     localStorage.setItem("usuario", JSON.stringify(usuarioLogado));
     iniciarJogo();
-
   } catch (err) {
     erroEl.innerText = "Erro ao conectar com servidor";
     erroEl.classList.remove("hidden");
@@ -104,19 +97,15 @@ async function fazerLogin() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, senha })
     });
-
     const data = await res.json();
-
     if (!res.ok) {
       erroEl.innerText = data.erro || "Erro ao entrar";
       erroEl.classList.remove("hidden");
       return;
     }
-
     usuarioLogado = data.usuario;
     localStorage.setItem("usuario", JSON.stringify(usuarioLogado));
     iniciarJogo();
-
   } catch (err) {
     erroEl.innerText = "Erro ao conectar com servidor";
     erroEl.classList.remove("hidden");
@@ -130,14 +119,10 @@ function fazerLogout() {
 }
 
 function iniciarJogo() {
-  // esconde telas de auth
   document.getElementById("telaLogin").classList.add("hidden");
   document.getElementById("telaCadastro").classList.add("hidden");
-
-  // mostra jogo
   document.getElementById("jogoprincipal").classList.remove("hidden");
 
-  // carrega dados do usuário
   perfil.nome = usuarioLogado.nome;
   perfil.id = usuarioLogado.id;
   perfil.partidas = usuarioLogado.partidas || 0;
@@ -153,6 +138,10 @@ function iniciarJogo() {
 
   setInterval(buscarSaldo, 5000);
   setInterval(buscarRankingDiario, 10000);
+
+  // inicia polling do chat quando aberto
+  configurarClickBtn();
+  configurarClickBtnTreino();
 }
 
 // =============================
@@ -166,11 +155,16 @@ let historicoCliques = [];
 let timerInterval = null;
 let botInterval = null;
 let posicaoAnterior = null;
+let treinoInterval = null;
+let treinoBot = null;
+let treinoCliquesCount = 0;
+let treinoTempo = 30;
 
 let ambientOsc = null;
 let ambientGain = null;
 let ultimoSaldo = 0;
 let audioCtx = null;
+let somAtivo = true;
 
 let perfil = JSON.parse(localStorage.getItem("perfil")) || {
   nome: "Jogador",
@@ -203,7 +197,7 @@ let bots = [
 ];
 
 // =============================
-// 🔊 ÁUDIO
+// 🔊 ÁUDIO + SOM ON/OFF
 // =============================
 
 document.addEventListener("click", () => {
@@ -218,20 +212,23 @@ document.addEventListener("click", () => {
   }
 });
 
-function iniciarSomAmbiente() {
-  if (!audioCtx || ambientOsc) return;
+function toggleSom() {
+  somAtivo = !somAtivo;
+  const btn = document.getElementById("btnSom");
+  if (btn) btn.innerText = somAtivo ? "🔊" : "🔇";
+}
 
+function iniciarSomAmbiente() {
+  if (!somAtivo || !audioCtx || ambientOsc) return;
   ambientOsc = audioCtx.createOscillator();
   ambientGain = audioCtx.createGain();
   ambientOsc.type = "triangle";
-
   let agora = audioCtx.currentTime;
   ambientOsc.frequency.setValueAtTime(600, agora);
   ambientOsc.frequency.linearRampToValueAtTime(900, agora + 0.1);
   ambientOsc.frequency.linearRampToValueAtTime(700, agora + 0.2);
   ambientGain.gain.setValueAtTime(0.1, agora);
   ambientGain.gain.exponentialRampToValueAtTime(0.0001, agora + 0.25);
-
   ambientOsc.connect(ambientGain);
   ambientGain.connect(audioCtx.destination);
   ambientOsc.start(agora);
@@ -246,7 +243,7 @@ function pararSomAmbiente() {
 }
 
 function somClick() {
-  if (!audioCtx) return;
+  if (!somAtivo || !audioCtx) return;
   let osc = audioCtx.createOscillator();
   let gain = audioCtx.createGain();
   osc.frequency.value = 600;
@@ -259,7 +256,7 @@ function somClick() {
 }
 
 function somUltrapassar() {
-  if (!audioCtx) return;
+  if (!somAtivo || !audioCtx) return;
   let osc = audioCtx.createOscillator();
   let gain = audioCtx.createGain();
   osc.frequency.setValueAtTime(400, audioCtx.currentTime);
@@ -272,7 +269,7 @@ function somUltrapassar() {
 }
 
 function somVitoria() {
-  if (!audioCtx) return;
+  if (!somAtivo || !audioCtx) return;
   let osc = audioCtx.createOscillator();
   let gain = audioCtx.createGain();
   osc.frequency.setValueAtTime(500, audioCtx.currentTime);
@@ -296,13 +293,10 @@ setInterval(() => {
 function cliqueValido() {
   const agora = Date.now();
   if (agora - ultimoCliqueValido < 80) return false;
-
   ultimoCliqueValido = agora;
   cliquesSegundo++;
   historicoCliques.push(agora);
-
   if (historicoCliques.length > 10) historicoCliques.shift();
-
   if (historicoCliques.length === 10) {
     let intervalos = [];
     for (let i = 1; i < historicoCliques.length; i++) {
@@ -311,16 +305,170 @@ function cliqueValido() {
     const todosIguais = intervalos.every(i => Math.abs(i - intervalos[0]) < 5);
     if (todosIguais) { console.log("🚨 Bot detectado"); return false; }
   }
-
   return true;
 }
 
 // =============================
-// 🏆 RANKING DIÁRIO (real)
+// 💬 CHAT GLOBAL
+// =============================
+
+let chatAberto = false;
+let chatInterval = null;
+let ultimaMensagemId = null;
+
+function abrirChat() {
+  document.getElementById("chatGlobal").classList.remove("hidden");
+  chatAberto = true;
+  carregarMensagens();
+  chatInterval = setInterval(carregarMensagens, 3000);
+}
+
+function fecharChat() {
+  document.getElementById("chatGlobal").classList.add("hidden");
+  chatAberto = false;
+  clearInterval(chatInterval);
+}
+
+async function carregarMensagens() {
+  try {
+    const res = await fetch(`${window.location.origin}/chat`);
+    if (!res.ok) return;
+    const mensagens = await res.json();
+
+    const container = document.getElementById("chatMensagens");
+    const eraEmbaixo = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
+
+    container.innerHTML = "";
+
+    mensagens.forEach(m => {
+      const souEu = usuarioLogado && m.user_id === usuarioLogado.id;
+      const foto = m.foto_url
+        ? `<img src="${m.foto_url}" class="chat-foto" />`
+        : `<div class="chat-avatar">${m.nome.charAt(0).toUpperCase()}</div>`;
+
+      container.innerHTML += `
+        <div class="chat-msg ${souEu ? "chat-msg-eu" : ""}">
+          ${!souEu ? foto : ""}
+          <div class="chat-bubble ${souEu ? "bubble-eu" : "bubble-outro"}">
+            ${!souEu ? `<div class="chat-nome">${m.nome}</div>` : ""}
+            <div>${m.mensagem}</div>
+          </div>
+          ${souEu ? foto : ""}
+        </div>
+      `;
+    });
+
+    if (eraEmbaixo) container.scrollTop = container.scrollHeight;
+  } catch(e) {}
+}
+
+async function enviarMensagem() {
+  const input = document.getElementById("chatInput");
+  const msg = input.value.trim();
+  if (!msg || !usuarioLogado) return;
+
+  input.value = "";
+
+  try {
+    await fetch(`${window.location.origin}/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: usuarioLogado.id,
+        nome: usuarioLogado.nome,
+        foto_url: usuarioLogado.foto_url,
+        mensagem: msg
+      })
+    });
+    carregarMensagens();
+  } catch(e) {}
+}
+
+// envia com Enter
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && chatAberto) {
+    enviarMensagem();
+  }
+});
+
+// =============================
+// 🏋️ ARENA DE TREINO
+// =============================
+
+function abrirTreino() {
+  treinoCliquesCount = 0;
+  treinoTempo = 30;
+  document.getElementById("arenaTreino").classList.remove("hidden");
+  document.getElementById("treinoCliques").innerText = "0";
+  document.getElementById("treino-barra").style.width = "0%";
+  iniciarTreino();
+}
+
+function fecharTreino() {
+  clearInterval(treinoInterval);
+  document.getElementById("arenaTreino").classList.add("hidden");
+}
+
+function iniciarTreino() {
+  clearInterval(treinoInterval);
+  treinoTempo = 30;
+
+  treinoInterval = setInterval(() => {
+    treinoTempo--;
+    const el = document.getElementById("treinoTimer");
+    if (el) el.innerText = treinoTempo + "s";
+
+    if (treinoTempo <= 0) {
+      clearInterval(treinoInterval);
+      const resultado = treinoCliquesCount;
+      document.getElementById("arenaTreino").classList.add("hidden");
+
+      // mostra resultado do treino
+      const titulo = document.getElementById("resultadoTitulo");
+      const texto = document.getElementById("resultadoTexto");
+      titulo.classList.remove("vitoria", "derrota");
+      titulo.classList.add("vitoria");
+      titulo.innerText = "🏋️ TREINO CONCLUÍDO";
+      texto.innerText = `Você fez ${resultado} cliques! Continue treinando.`;
+      document.getElementById("resultado").classList.remove("hidden");
+    }
+  }, 1000);
+}
+
+function configurarClickBtnTreino() {
+  const btn = document.getElementById("clickBtnTreino");
+  if (!btn) return;
+
+  btn.addEventListener("click", () => {
+    if (treinoTempo <= 0) return;
+    if (!cliqueValido()) return;
+
+    treinoCliquesCount++;
+    somClick();
+
+    const el = document.getElementById("treinoCliques");
+    if (el) el.innerText = treinoCliquesCount;
+
+    const max = 200;
+    const pct = Math.min((treinoCliquesCount / max) * 100, 100);
+    const barra = document.getElementById("treino-barra");
+    if (barra) barra.style.width = pct + "%";
+
+    const plus = document.createElement("div");
+    plus.innerText = "+1";
+    plus.className = "plus";
+    plus.style.left = "50%";
+    plus.style.top = "50%";
+    document.getElementById("clickAreaTreino").appendChild(plus);
+    setTimeout(() => plus.remove(), 800);
+  });
+}
+
+// =============================
+// 🏆 RANKING DIÁRIO
 // =============================
 
 let rankingDiario = [];
-let minhaposicaoRanking = null;
 
 async function buscarRankingDiario() {
   try {
@@ -337,7 +485,6 @@ function renderRanking() {
 
   div.innerHTML = "<h3>🏆 Top jogadores hoje</h3>";
 
-  // se não tiver dados reais ainda, mostra vazio
   if (!rankingDiario.length) {
     div.innerHTML += `<p style="text-align:center; color:#6b7280; padding:20px;">Nenhuma partida hoje ainda</p>`;
     return;
@@ -367,7 +514,6 @@ function renderRanking() {
     `;
   });
 
-  // mostra posição do jogador logado se não estiver no top 3
   if (usuarioLogado) {
     const minhaPosicao = rankingDiario.findIndex(j => j.user_id === usuarioLogado.id);
     if (minhaPosicao >= 3) {
@@ -427,24 +573,20 @@ function renderSalas() {
 
 function entrarSala(nome) {
   pararSomAmbiente();
-
   const sala = salas.find(s => s.nome === nome);
   if (sala.status === "jogando") return;
-
   if (saldo < sala.valor) {
     alert("Saldo insuficiente. Deposite para jogar!");
     return;
   }
-
   saldo -= sala.valor;
   atualizarSaldo();
-
   document.getElementById("arena").classList.remove("hidden");
   iniciarArena();
 }
 
 // =============================
-// ⚔️ ARENA
+// ⚔️ ARENA DE COMBATE
 // =============================
 
 function iniciarArena() {
@@ -459,7 +601,8 @@ function iniciarArena() {
 
   timerInterval = setInterval(() => {
     tempo--;
-    document.getElementById("arenaTimer").innerText = tempo + "s";
+    const el = document.getElementById("arenaTimer");
+    if (el) el.innerText = tempo + "s";
 
     if (tempo <= 0) {
       clearInterval(timerInterval);
@@ -474,8 +617,7 @@ function iniciarArena() {
 
   botInterval = setInterval(() => {
     bots.forEach(bot => {
-      let variacao = Math.random() * 2;
-      bot.score += bot.ritmo + variacao;
+      bot.score += bot.ritmo + Math.random() * 2;
       if (Math.random() > 0.9) bot.score += 10;
     });
     atualizarRankingArena();
@@ -483,8 +625,9 @@ function iniciarArena() {
 }
 
 function atualizarRankingArena() {
+  const nomeJogador = usuarioLogado ? usuarioLogado.nome : "VOCÊ";
   let jogadores = [
-    { nome: usuarioLogado ? usuarioLogado.nome : "VOCÊ", score: cliques },
+    { nome: nomeJogador, score: cliques },
     ...bots
   ];
 
@@ -495,34 +638,29 @@ function atualizarRankingArena() {
   if (!div) return;
   div.innerHTML = "";
 
-  const nomeJogador = usuarioLogado ? usuarioLogado.nome : "VOCÊ";
   let posicao = jogadores.findIndex(j => j.nome === nomeJogador) + 1;
-
   if (posicaoAnterior !== null && posicao < posicaoAnterior) somUltrapassar();
   posicaoAnterior = posicao;
 
   jogadores.slice(0, 4).forEach((j, i) => {
-    let porcentagem = (j.score / max) * 100;
     const eVoce = j.nome === nomeJogador;
-
     div.innerHTML += `
       <div class="rank-player ${eVoce ? "voce" : ""}">
-        <div style="display:flex; justify-content:space-between;">
-          <span>${i + 1}º • ${j.nome}</span>
+        <div style="display:flex; justify-content:space-between; font-size:13px;">
+          <span>${i + 1}º ${j.nome}</span>
           <span>${Math.floor(j.score)}</span>
         </div>
         <div class="barra">
-          <div class="progresso" style="width:${porcentagem}%"></div>
+          <div class="progresso" style="width:${(j.score / max) * 100}%"></div>
         </div>
       </div>
     `;
   });
 }
 
-window.onload = () => {
+function configurarClickBtn() {
   const btn = document.getElementById("clickBtn");
   if (!btn) return;
-
   btn.onclick = null;
 
   btn.addEventListener("click", () => {
@@ -541,7 +679,6 @@ window.onload = () => {
 
     if (agora - ultimoClique < 300) combo++;
     else combo = 1;
-
     ultimoClique = agora;
 
     let ganho = combo >= 5 ? 2 : 1;
@@ -558,7 +695,7 @@ window.onload = () => {
 
     atualizarRankingArena();
   });
-};
+}
 
 // =============================
 // 🏁 RESULTADO
@@ -568,10 +705,7 @@ function mostrarResultado() {
   somVitoria();
 
   const nomeJogador = usuarioLogado ? usuarioLogado.nome : "VOCÊ";
-  let jogadores = [
-    { nome: nomeJogador, score: cliques },
-    ...bots
-  ];
+  let jogadores = [{ nome: nomeJogador, score: cliques }, ...bots];
   jogadores.sort((a, b) => b.score - a.score);
 
   const posicao = jogadores.findIndex(j => j.nome === nomeJogador) + 1;
@@ -716,15 +850,13 @@ async function confirmarSaque() {
     msgEl.classList.remove("hidden");
     return;
   }
-
   if (!chave) {
     msgEl.innerText = "Digite sua chave PIX";
     msgEl.className = "saque-erro";
     msgEl.classList.remove("hidden");
     return;
   }
-
-  if(valor > saldo) {
+  if (valor > saldo) {
     msgEl.innerText = "Saldo insuficiente";
     msgEl.className = "saque-erro";
     msgEl.classList.remove("hidden");
@@ -737,7 +869,6 @@ async function confirmarSaque() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ valor, userId: usuarioLogado.id, chave_pix: chave })
     });
-
     const data = await res.json();
 
     if (!res.ok) {
@@ -749,14 +880,11 @@ async function confirmarSaque() {
 
     saldo -= valor;
     atualizarSaldo();
-
     msgEl.innerText = data.mensagem;
     msgEl.className = "saque-sucesso";
     msgEl.classList.remove("hidden");
-
     document.getElementById("inputSaqueValor").value = "";
     document.getElementById("inputSaqueChave").value = "";
-
   } catch (err) {
     msgEl.innerText = "Erro ao conectar com servidor";
     msgEl.className = "saque-erro";
@@ -789,7 +917,6 @@ async function confirmarDeposito() {
     }
 
     const data = await res.json();
-    const pixId = data.id;
 
     container.innerHTML = `
       <img src="data:image/png;base64,${data.qr_base64}" style="width:200px; margin-top:10px; border-radius:10px;">
@@ -797,7 +924,6 @@ async function confirmarDeposito() {
       <div id="feedbackPix" class="hidden"></div>
     `;
 
-    // verifica pagamento a cada 5s
     const verificar = setInterval(async () => {
       try {
         const r = await fetch(`${window.location.origin}/saldo/${usuarioLogado.id}`);
@@ -806,19 +932,13 @@ async function confirmarDeposito() {
           clearInterval(verificar);
           saldo = d.saldo;
           atualizarSaldo();
-          container.innerHTML = `
-            <div class="pix-sucesso">
-              ✅ Depósito realizado com sucesso!
-            </div>
-          `;
+          container.innerHTML = `<div class="pix-sucesso">✅ Depósito realizado com sucesso!</div>`;
           setTimeout(() => fecharDeposito(), 2500);
         }
       } catch(e) {}
     }, 5000);
 
-    // para de verificar após 10 minutos
     setTimeout(() => clearInterval(verificar), 600000);
-
   } catch (err) {
     container.innerHTML = "<p style='color:red'>Erro ao conectar com servidor</p>";
   }
@@ -841,23 +961,17 @@ function mostrarFeedback(msg) {
 
 async function buscarSaldo() {
   if (!usuarioLogado) return;
-
   try {
     const res = await fetch(`${window.location.origin}/saldo/${usuarioLogado.id}`);
     if (!res.ok) return;
     const data = await res.json();
     const novoSaldo = data.saldo;
-
     if (novoSaldo > ultimoSaldo && ultimoSaldo > 0) animarDinheiro(novoSaldo - ultimoSaldo);
     ultimoSaldo = novoSaldo;
     saldo = novoSaldo;
-
     const el = document.getElementById("saldo");
     if (el) el.innerText = "R$ " + novoSaldo.toFixed(2);
-
-  } catch (err) {
-    console.log("Servidor offline ou erro:", err);
-  }
+  } catch (err) {}
 }
 
 function atualizarSaldo() {
@@ -879,7 +993,6 @@ function animarDinheiro(valor) {
 
 async function verHistorico() {
   if (!usuarioLogado) return;
-
   const res = await fetch(`${window.location.origin}/historico/${usuarioLogado.id}`);
   const dados = await res.json();
   const area = document.getElementById("historicoArea");
@@ -895,7 +1008,6 @@ async function verHistorico() {
       </div>
     `).join("");
   }
-
   area.classList.remove("hidden");
 }
 
@@ -926,36 +1038,22 @@ function abrirPerfil() {
         <span class="btn-voltar" onclick="fecharTela()">←</span>
         <h2>Perfil</h2>
       </div>
-
       <div class="perfil-header">
         ${foto}
         <p style="font-size:12px; color:#6b7280; margin-top:5px;">Toque na foto para alterar</p>
         <input id="inputFotoPerfil" type="file" accept="image/*" class="hidden" onchange="atualizarFotoPerfil(event)" />
-
         <input id="nomePerfil" value="${perfil.nome}" class="input-nome" />
         <p style="color:#6b7280; font-size:13px;">ID: ${perfil.id}</p>
       </div>
-
       <div class="perfil-saldo">
         <span>Saldo atual</span>
         <h1>R$ ${saldo.toFixed(2)}</h1>
       </div>
-
       <div class="perfil-stats">
-        <div class="stat">
-          <strong>${perfil.partidas}</strong>
-          <span>Partidas</span>
-        </div>
-        <div class="stat">
-          <strong>${perfil.vitorias}</strong>
-          <span>Vitórias</span>
-        </div>
-        <div class="stat">
-          <strong>${aproveitamento}%</strong>
-          <span>Aproveitamento</span>
-        </div>
+        <div class="stat"><strong>${perfil.partidas}</strong><span>Partidas</span></div>
+        <div class="stat"><strong>${perfil.vitorias}</strong><span>Vitórias</span></div>
+        <div class="stat"><strong>${aproveitamento}%</strong><span>Aproveit.</span></div>
       </div>
-
       <div class="perfil-actions">
         <button class="btn-primary" onclick="salvarNome()">💾 Salvar nome</button>
         <button class="btn-secondary" onclick="fecharTela()">✕ Fechar</button>
@@ -974,19 +1072,17 @@ async function atualizarFotoPerfil(event) {
 
   const reader = new FileReader();
   reader.onload = async (e) => {
-    const base64 = e.target.result;
-
     try {
       const res = await fetch(`${window.location.origin}/atualizar-foto`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: usuarioLogado.id, foto_base64: base64 })
+        body: JSON.stringify({ userId: usuarioLogado.id, foto_base64: e.target.result })
       });
       const data = await res.json();
       if (data.ok) {
         usuarioLogado.foto_url = data.foto_url;
         localStorage.setItem("usuario", JSON.stringify(usuarioLogado));
-        abrirPerfil(); // recarrega tela
+        abrirPerfil();
       }
     } catch(e) {}
   };
@@ -1052,7 +1148,7 @@ function abrirConfiguracoes() {
       <div class="tela-content">
         <div class="config-item">
           <span>Som</span>
-          <input type="checkbox" checked>
+          <input type="checkbox" ${somAtivo ? "checked" : ""} onchange="toggleSom()">
         </div>
         <div class="config-item">
           <span>Vibração</span>

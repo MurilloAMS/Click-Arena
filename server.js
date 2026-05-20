@@ -121,6 +121,53 @@ app.post("/login", async (req, res) => {
 });
 
 // =============================
+// 💬 CHAT GLOBAL
+// =============================
+app.get("/chat", async (req, res) => {
+  const { data, error } = await supabase
+    .from("chat_global")
+    .select("*")
+    .order("created_at", { ascending: true })
+    .limit(50);
+
+  if (error) return res.status(500).json({ erro: error.message });
+
+  res.json(data || []);
+});
+
+app.post("/chat", async (req, res) => {
+  const { userId, nome, foto_url, mensagem } = req.body;
+
+  if (!mensagem || !mensagem.trim()) {
+    return res.status(400).json({ erro: "Mensagem vazia" });
+  }
+
+  const { error } = await supabase
+    .from("chat_global")
+    .insert([{
+      user_id: userId,
+      nome,
+      foto_url: foto_url || null,
+      mensagem: mensagem.trim()
+    }]);
+
+  if (error) return res.status(500).json({ erro: error.message });
+
+  // mantém só as últimas 100 mensagens
+  const { data: todas } = await supabase
+    .from("chat_global")
+    .select("id")
+    .order("created_at", { ascending: true });
+
+  if (todas && todas.length > 100) {
+    const ids = todas.slice(0, todas.length - 100).map(m => m.id);
+    await supabase.from("chat_global").delete().in("id", ids);
+  }
+
+  res.json({ ok: true });
+});
+
+// =============================
 // 💰 CRIAR PAGAMENTO (PIX)
 // =============================
 app.post("/criar-pagamento", async (req, res) => {

@@ -16,16 +16,11 @@
   <div class="auth-box">
     <div class="auth-logo">Cl<span class="i-custom">í</span>ck</div>
     <h2>Entrar</h2>
-
     <input id="loginEmail" type="email" placeholder="E-mail" class="auth-input" />
     <input id="loginSenha" type="password" placeholder="Senha" class="auth-input" />
-
     <div id="loginErro" class="auth-erro hidden"></div>
-
     <button onclick="fazerLogin()" class="btn-primary">Entrar</button>
-    <button onclick="mostrarCadastro()" class="btn-secondary" style="margin-top:10px">
-      Criar conta
-    </button>
+    <button onclick="mostrarCadastro()" class="btn-secondary" style="margin-top:10px">Criar conta</button>
   </div>
 </div>
 
@@ -36,29 +31,22 @@
   <div class="auth-box">
     <div class="auth-logo">Cl<span class="i-custom">í</span>ck</div>
     <h2>Criar conta</h2>
-
-    <!-- foto de perfil -->
     <div class="foto-upload" onclick="document.getElementById('inputFoto').click()">
       <div id="fotoPreview" class="foto-placeholder">📷</div>
       <span>Adicionar foto</span>
     </div>
     <input id="inputFoto" type="file" accept="image/*" class="hidden" onchange="previewFoto(event)" />
-
     <input id="cadNome" type="text" placeholder="Nome de usuário" class="auth-input" />
     <input id="cadEmail" type="email" placeholder="E-mail" class="auth-input" />
     <input id="cadSenha" type="password" placeholder="Senha" class="auth-input" />
-
     <div id="cadErro" class="auth-erro hidden"></div>
-
     <button onclick="fazerCadastro()" class="btn-primary">Criar conta</button>
-    <button onclick="mostrarLogin()" class="btn-secondary" style="margin-top:10px">
-      Já tenho conta
-    </button>
+    <button onclick="mostrarLogin()" class="btn-secondary" style="margin-top:10px">Já tenho conta</button>
   </div>
 </div>
 
 <!-- =============================
-     JOGO PRINCIPAL (inicia hidden)
+     JOGO PRINCIPAL
 ============================= -->
 <div id="jogoprincipal" class="hidden">
 
@@ -83,7 +71,7 @@
     <div class="saldo" id="saldo" onclick="abrirWallet()">R$ 0.00</div>
   </div>
 
-  <!-- TIMER -->
+  <!-- TIMER + BOTÕES LATERAIS -->
   <div class="timer-wrapper">
     <div class="timer-box">
       <div class="timer-glow"></div>
@@ -93,6 +81,13 @@
         <div class="timer-text" id="timer">00:30</div>
       </div>
     </div>
+
+    <!-- BOTÕES LATERAIS DO TIMER -->
+    <div class="timer-botoes">
+      <button class="timer-btn" onclick="abrirChat()" title="Chat Global">💬</button>
+      <button class="timer-btn" onclick="abrirTreino()" title="Arena de Treino">🏋️</button>
+      <button class="timer-btn" id="btnSom" onclick="toggleSom()" title="Som">🔊</button>
+    </div>
   </div>
 
   <!-- RANKING -->
@@ -100,11 +95,16 @@
     <h3>🏆 Top jogadores hoje</h3>
   </div>
 
-  <!-- ARENA -->
+  <!-- SALAS -->
+  <div class="salas" id="salas"></div>
+
+  <!-- ARENA DE COMBATE -->
   <div id="arena" class="arena hidden">
-    <div class="arena-topo">Click</div>
-    <div class="arena-content">
+    <div class="arena-topo">⚔️ Click Arena</div>
+    <div class="arena-layout">
+      <!-- RANKING DA ARENA -->
       <div class="arena-ranking" id="arenaRanking"></div>
+      <!-- BOTÃO CENTRAL -->
       <div class="arena-center">
         <button id="clickBtn">CLICK</button>
         <div id="clickArea"></div>
@@ -113,8 +113,30 @@
     <div class="arena-timer" id="arenaTimer">30s</div>
   </div>
 
-  <!-- SALAS -->
-  <div class="salas" id="salas"></div>
+  <!-- ARENA DE TREINO -->
+  <div id="arenaTreino" class="arena hidden">
+    <div class="arena-topo">🏋️ Treino</div>
+    <div class="arena-layout">
+      <div class="arena-ranking" id="treinoRanking">
+        <div class="rank-player voce">
+          <div style="display:flex; justify-content:space-between;">
+            <span>Seus cliques</span>
+            <span id="treinoCliques">0</span>
+          </div>
+          <div class="barra"><div class="progresso" id="treino-barra" style="width:0%"></div></div>
+        </div>
+        <p style="color:#6b7280; font-size:12px; text-align:center; margin-top:10px;">Modo treino — sem custo</p>
+      </div>
+      <div class="arena-center">
+        <button id="clickBtnTreino">TREINO</button>
+        <div id="clickAreaTreino"></div>
+      </div>
+    </div>
+    <div style="position:fixed; bottom:30px; left:50%; transform:translateX(-50%); display:flex; gap:15px;">
+      <div class="arena-timer" id="treinoTimer">30s</div>
+      <button onclick="fecharTreino()" style="background:#374151; border:none; color:white; padding:8px 16px; border-radius:10px; cursor:pointer;">Sair</button>
+    </div>
+  </div>
 
   <!-- RESULTADO -->
   <div id="resultado" class="resultado hidden">
@@ -123,6 +145,21 @@
       <h1 id="resultadoTitulo"></h1>
       <p id="resultadoTexto"></p>
       <button onclick="fecharResultado()">Jogar novamente</button>
+    </div>
+  </div>
+
+  <!-- CHAT GLOBAL -->
+  <div id="chatGlobal" class="chat-overlay hidden">
+    <div class="chat-box">
+      <div class="chat-header">
+        <span>💬 Chat Global</span>
+        <span onclick="fecharChat()" style="cursor:pointer">✕</span>
+      </div>
+      <div class="chat-mensagens" id="chatMensagens"></div>
+      <div class="chat-input-area">
+        <input id="chatInput" type="text" placeholder="Digite sua mensagem..." maxlength="200" />
+        <button onclick="enviarMensagem()">➤</button>
+      </div>
     </div>
   </div>
 
@@ -141,7 +178,6 @@
         <button onclick="depositar()" class="btn-depositar">Depositar</button>
         <button onclick="sacar()" class="btn-sacar">Sacar</button>
       </div>
-
       <div id="modalDeposito" class="hidden">
         <div class="deposito-box">
           <h3>💰 Depositar via PIX</h3>
@@ -151,8 +187,6 @@
           <div id="pixContainer"></div>
         </div>
       </div>
-
-      <!-- MODAL SAQUE -->
       <div id="modalSaque" class="hidden">
         <div class="deposito-box">
           <h3>💸 Solicitar Saque</h3>
@@ -163,12 +197,8 @@
           <div id="saqueMsg" class="hidden"></div>
         </div>
       </div>
-
-      <button onclick="verHistorico()" class="btn-historico">
-        📊 Histórico de transações
-      </button>
+      <button onclick="verHistorico()" class="btn-historico">📊 Histórico de transações</button>
       <div id="historicoArea" class="hidden"></div>
-
       <div class="wallet-card">
         <span>Conta vinculada</span>
         <p>•••• •••• •••• 4589</p>
@@ -178,7 +208,7 @@
 
   <div id="telaMenu" class="tela hidden"></div>
 
-</div><!-- fim jogoprincial -->
+</div>
 
 <script src="/script.js"></script>
 </body>
