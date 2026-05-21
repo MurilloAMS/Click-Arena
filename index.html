@@ -16,14 +16,11 @@
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="Click Arena" />
   <meta name="twitter:description" content="Ganhe dinheiro clicando mais rápido que os outros!" />
-
-  <!-- PWA -->
   <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" href="/favicon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Click Arena">
-
   <link rel="stylesheet" href="/style.css">
   <link rel="icon" href="/favicon.png">
 </head>
@@ -127,6 +124,19 @@
 
   <!-- ARENA DE COMBATE -->
   <div id="arena" class="arena hidden">
+
+    <!-- ✅ OVERLAY DE ESPERA -->
+    <div id="arenaEspera" class="arena-espera hidden">
+      <div class="espera-box">
+        <div class="espera-icone">🔴</div>
+        <div class="espera-titulo">AGUARDANDO INÍCIO</div>
+        <div class="espera-sub">A partida começa em</div>
+        <div class="espera-count" id="esperaCount">30</div>
+        <div class="espera-sub">segundos</div>
+        <div class="espera-pulso"></div>
+      </div>
+    </div>
+
     <div class="arena-topo">⚔️ Click Arena</div>
     <div class="arena-layout">
       <div class="arena-ranking" id="arenaRanking"></div>
@@ -236,7 +246,7 @@
 
 </div>
 
-<!-- SERVICE WORKER + PWA -->
+<!-- PWA -->
 <script>
 let deferredPrompt = null;
 

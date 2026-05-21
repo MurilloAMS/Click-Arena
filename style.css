@@ -1069,3 +1069,77 @@ textarea:focus { outline: 2px solid #22c55e; }
   font-size: 14px;
   cursor: pointer;
 }
+
+/* ===========================
+   TELA DE ESPERA NA ARENA
+=========================== */
+.arena-espera {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(6px);
+}
+
+.espera-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.espera-icone {
+  font-size: 48px;
+  animation: piscar 0.8s infinite;
+}
+
+@keyframes piscar {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.2; }
+}
+
+.espera-titulo {
+  font-size: 22px;
+  font-weight: bold;
+  color: #ef4444;
+  letter-spacing: 2px;
+  text-shadow: 0 0 20px rgba(239,68,68,0.8);
+}
+
+.espera-sub {
+  font-size: 14px;
+  color: #9ca3af;
+}
+
+.espera-count {
+  font-size: 80px;
+  font-weight: bold;
+  color: #ef4444;
+  text-shadow: 0 0 30px rgba(239,68,68,0.9), 0 0 60px rgba(239,68,68,0.5);
+  line-height: 1;
+  animation: pulsoVermelho 1s infinite;
+}
+
+@keyframes pulsoVermelho {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+.espera-pulso {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  border: 3px solid #ef4444;
+  animation: expandir 1.5s infinite;
+  margin-top: 10px;
+}
+
+@keyframes expandir {
+  0%   { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(1.6); opacity: 0; }
+}

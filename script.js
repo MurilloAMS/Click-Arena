@@ -44,7 +44,6 @@ async function fazerCadastro() {
   const email = document.getElementById("cadEmail").value.trim();
   const senha = document.getElementById("cadSenha").value;
   const erroEl = document.getElementById("cadErro");
-
   erroEl.classList.add("hidden");
 
   if (!nome || !email || !senha) {
@@ -83,7 +82,6 @@ async function fazerLogin() {
   const email = document.getElementById("loginEmail").value.trim();
   const senha = document.getElementById("loginSenha").value;
   const erroEl = document.getElementById("loginErro");
-
   erroEl.classList.add("hidden");
 
   if (!email || !senha) {
@@ -158,6 +156,7 @@ let posicaoAnterior = null;
 let treinoInterval = null;
 let treinoCliquesCount = 0;
 let treinoTempo = 30;
+let esperaInterval = null; // ✅ timer da tela de espera
 
 let ambientOsc = null;
 let ambientGain = null;
@@ -166,10 +165,7 @@ let audioCtx = null;
 let somAtivo = true;
 
 let perfil = JSON.parse(localStorage.getItem("perfil")) || {
-  nome: "Jogador",
-  id: "user1",
-  partidas: 0,
-  vitorias: 0
+  nome: "Jogador", id: "user1", partidas: 0, vitorias: 0
 };
 
 let combo = 0;
@@ -180,7 +176,7 @@ let tempo = 30;
 let salaAtual = null;
 
 // =============================
-// 🤖 BOTS DAS SALAS (nomes reais)
+// 🤖 BOTS DAS SALAS
 // =============================
 
 const nomesBot = [
@@ -191,7 +187,6 @@ const nomesBot = [
   "Felipe Araujo", "Isabela Castro", "Gustavo Lima", "Patricia Moura"
 ];
 
-// URLs de fotos reais de pessoas (via UI Faces / randomuser)
 const fotosBot = [
   "https://randomuser.me/api/portraits/men/32.jpg",
   "https://randomuser.me/api/portraits/women/44.jpg",
@@ -216,47 +211,36 @@ const fotosBot = [
 ];
 
 const salas = [
-  { nome: "Bronze", jogadores: 0, max: 40, valor: 2, tempo: 30, status: "aguardando", emJogo: false, bots: [] },
-  { nome: "Prata",  jogadores: 0, max: 40, valor: 5, tempo: 30, status: "aguardando", emJogo: false, bots: [] },
-  { nome: "Ouro",   jogadores: 0, max: 40, valor: 10, tempo: 30, status: "aguardando", emJogo: false, bots: [] },
-  { nome: "Diamante", jogadores: 0, max: 40, valor: 20, tempo: 30, status: "aguardando", emJogo: false, bots: [] },
+  { nome: "Bronze",   jogadores: 0, max: 50, valor: 2,  tempo: 30, status: "aguardando", emJogo: false, bots: [] },
+  { nome: "Prata",    jogadores: 0, max: 50, valor: 5,  tempo: 30, status: "aguardando", emJogo: false, bots: [] },
+  { nome: "Ouro",     jogadores: 0, max: 50, valor: 10, tempo: 30, status: "aguardando", emJogo: false, bots: [] },
+  { nome: "Diamante", jogadores: 0, max: 50, valor: 20, tempo: 30, status: "aguardando", emJogo: false, bots: [] },
 ];
 
 const grupoA = [0, 1];
 const grupoB = [2, 3];
 let grupoAtual = "A";
-
-// bots da arena de combate
 let botsArena = [];
 
 function gerarBotsParaSala(sala) {
-  const qtd = Math.floor(Math.random() * 11) + 7; // 7 a 17
+  const qtd = Math.floor(Math.random() * 11) + 7;
   const indices = [];
   while (indices.length < qtd) {
     const i = Math.floor(Math.random() * nomesBot.length);
     if (!indices.includes(i)) indices.push(i);
   }
-  sala.bots = indices.map(i => ({
-    nome: nomesBot[i],
-    foto: fotosBot[i],
-    score: 0
-  }));
+  sala.bots = indices.map(i => ({ nome: nomesBot[i], foto: fotosBot[i], score: 0 }));
   sala.jogadores = sala.bots.length;
 }
 
 function iniciarBotsSalas() {
   salas.forEach(sala => gerarBotsParaSala(sala));
-  // simula entrada gradual de bots
   salas.forEach(sala => {
     const totalBots = sala.bots.length;
-    sala.jogadores = Math.floor(totalBots * 0.4); // começa com 40%
+    sala.jogadores = Math.floor(totalBots * 0.4);
     let adicionados = sala.jogadores;
-
     const entrar = setInterval(() => {
-      if (adicionados >= totalBots || sala.emJogo) {
-        clearInterval(entrar);
-        return;
-      }
+      if (adicionados >= totalBots || sala.emJogo) { clearInterval(entrar); return; }
       adicionados++;
       sala.jogadores = adicionados;
       renderSalas();
@@ -269,11 +253,8 @@ function iniciarBotsSalas() {
 // =============================
 
 document.addEventListener("click", () => {
-  if (!audioCtx) {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  }
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (audioCtx.state !== "running") audioCtx.resume();
-
   if (!window.somAmbienteIniciado) {
     window.somAmbienteIniciado = true;
     window.somIntervalo = setInterval(() => iniciarSomAmbiente(), 3000);
@@ -314,43 +295,34 @@ function somClick() {
   if (!somAtivo || !audioCtx) return;
   let osc = audioCtx.createOscillator();
   let gain = audioCtx.createGain();
-  osc.frequency.value = 600;
-  osc.type = "square";
+  osc.frequency.value = 600; osc.type = "square";
   gain.gain.value = 0.004;
-  osc.connect(gain);
-  gain.connect(audioCtx.destination);
-  osc.start();
-  osc.stop(audioCtx.currentTime + 0.05);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(); osc.stop(audioCtx.currentTime + 0.05);
 }
 
 function somUltrapassar() {
   if (!somAtivo || !audioCtx) return;
-  let osc = audioCtx.createOscillator();
-  let gain = audioCtx.createGain();
+  let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
   osc.frequency.setValueAtTime(400, audioCtx.currentTime);
   osc.frequency.exponentialRampToValueAtTime(900, audioCtx.currentTime + 0.2);
   gain.gain.value = 0.04;
-  osc.connect(gain);
-  gain.connect(audioCtx.destination);
-  osc.start();
-  osc.stop(audioCtx.currentTime + 0.2);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(); osc.stop(audioCtx.currentTime + 0.2);
 }
 
 function somVitoria() {
   if (!somAtivo || !audioCtx) return;
-  let osc = audioCtx.createOscillator();
-  let gain = audioCtx.createGain();
+  let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
   osc.frequency.setValueAtTime(500, audioCtx.currentTime);
   osc.frequency.linearRampToValueAtTime(1200, audioCtx.currentTime + 0.5);
   gain.gain.value = 0.03;
-  osc.connect(gain);
-  gain.connect(audioCtx.destination);
-  osc.start();
-  osc.stop(audioCtx.currentTime + 0.5);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(); osc.stop(audioCtx.currentTime + 0.5);
 }
 
 // =============================
-// 🛡️ ANTI-BOT — 1 clique por vez
+// 🛡️ ANTI-BOT
 // =============================
 
 setInterval(() => {
@@ -367,17 +339,14 @@ function cliqueValido() {
   if (historicoCliques.length > 10) historicoCliques.shift();
   if (historicoCliques.length === 10) {
     let intervalos = [];
-    for (let i = 1; i < historicoCliques.length; i++) {
-      intervalos.push(historicoCliques[i] - historicoCliques[i - 1]);
-    }
-    const todosIguais = intervalos.every(v => Math.abs(v - intervalos[0]) < 5);
-    if (todosIguais) { console.log("🚨 Bot detectado"); return false; }
+    for (let i = 1; i < historicoCliques.length; i++) intervalos.push(historicoCliques[i] - historicoCliques[i-1]);
+    if (intervalos.every(v => Math.abs(v - intervalos[0]) < 5)) { console.log("🚨 Bot"); return false; }
   }
   return true;
 }
 
 // =============================
-// 💬 CHAT GLOBAL
+// 💬 CHAT
 // =============================
 
 let chatAberto = false;
@@ -433,12 +402,7 @@ async function enviarMensagem() {
     await fetch(`${window.location.origin}/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        userId: usuarioLogado.id,
-        nome: usuarioLogado.nome,
-        foto_url: usuarioLogado.foto_url,
-        mensagem: msg
-      })
+      body: JSON.stringify({ userId: usuarioLogado.id, nome: usuarioLogado.nome, foto_url: usuarioLogado.foto_url, mensagem: msg })
     });
     carregarMensagens();
   } catch(e) {}
@@ -500,10 +464,9 @@ function configurarClickBtnTreino() {
     const barra = document.getElementById("treino-barra");
     if (barra) barra.style.width = Math.min((treinoCliquesCount / 200) * 100, 100) + "%";
     const plus = document.createElement("div");
-    plus.innerText = "+1";
-    plus.className = "plus";
-    plus.style.left = "50%";
-    plus.style.top = "50%";
+    plus.innerText = "+1"; plus.className = "plus";
+    plus.style.left = Math.random() * 60 + 20 + "%";
+    plus.style.top = "30%";
     document.getElementById("clickAreaTreino").appendChild(plus);
     setTimeout(() => plus.remove(), 800);
   });
@@ -528,52 +491,34 @@ function renderRanking() {
   const div = document.getElementById("ranking");
   if (!div) return;
   div.innerHTML = "<h3>🏆 Top jogadores hoje</h3>";
-
   if (!rankingDiario.length) {
     div.innerHTML += `<p style="text-align:center; color:#6b7280; padding:20px;">Nenhuma partida hoje ainda</p>`;
     return;
   }
-
-  const top3 = rankingDiario.slice(0, 3);
   const icones = ["🥇", "🥈", "🥉"];
   const classes = ["gold", "silver", "bronze"];
-
-  top3.forEach((j, i) => {
-    const foto = j.foto_url
-      ? `<img src="${j.foto_url}" class="rank-foto" />`
-      : `<div class="rank-avatar">${j.nome.charAt(0).toUpperCase()}</div>`;
+  rankingDiario.slice(0, 3).forEach((j, i) => {
+    const foto = j.foto_url ? `<img src="${j.foto_url}" class="rank-foto" />` : `<div class="rank-avatar">${j.nome.charAt(0).toUpperCase()}</div>`;
     div.innerHTML += `
       <div class="rank-card ${classes[i]}">
         <div class="rank-left">
-          <div class="rank-icon">${icones[i]}</div>
-          ${foto}
-          <div>
-            <div class="rank-name">${j.nome}</div>
-            <div class="rank-info">${j.vitorias} vitórias • ${j.cliques} cliques</div>
-          </div>
+          <div class="rank-icon">${icones[i]}</div>${foto}
+          <div><div class="rank-name">${j.nome}</div><div class="rank-info">${j.vitorias} vitórias • ${j.cliques} cliques</div></div>
         </div>
         <div class="rank-money">R$ ${j.ganho}</div>
       </div>
     `;
   });
-
   if (usuarioLogado) {
-    const minhaPosicao = rankingDiario.findIndex(j => j.user_id === usuarioLogado.id);
-    if (minhaPosicao >= 3) {
-      const eu = rankingDiario[minhaPosicao];
-      const foto = eu.foto_url
-        ? `<img src="${eu.foto_url}" class="rank-foto" />`
-        : `<div class="rank-avatar">${eu.nome.charAt(0).toUpperCase()}</div>`;
+    const pos = rankingDiario.findIndex(j => j.user_id === usuarioLogado.id);
+    if (pos >= 3) {
+      const eu = rankingDiario[pos];
+      const foto = eu.foto_url ? `<img src="${eu.foto_url}" class="rank-foto" />` : `<div class="rank-avatar">${eu.nome.charAt(0).toUpperCase()}</div>`;
       div.innerHTML += `
         <div class="rank-separador">• • •</div>
         <div class="rank-card voce-rank">
-          <div class="rank-left">
-            <div class="rank-icon">${minhaPosicao + 1}º</div>
-            ${foto}
-            <div>
-              <div class="rank-name">${eu.nome} (você)</div>
-              <div class="rank-info">${eu.vitorias} vitórias • ${eu.cliques} cliques</div>
-            </div>
+          <div class="rank-left"><div class="rank-icon">${pos + 1}º</div>${foto}
+            <div><div class="rank-name">${eu.nome} (você)</div><div class="rank-info">${eu.vitorias} vitórias • ${eu.cliques} cliques</div></div>
           </div>
           <div class="rank-money">R$ ${eu.ganho}</div>
         </div>
@@ -583,19 +528,18 @@ function renderRanking() {
 }
 
 // =============================
-// 🚪 SALAS com taxa de 30%
+// 🚪 SALAS
 // =============================
 
 function calcularPremio(sala) {
   const total = sala.jogadores * sala.valor;
-  return (total * 0.7).toFixed(2); // 70% para o vencedor
+  return (total * 0.7).toFixed(2);
 }
 
 function renderSalas() {
   const div = document.getElementById("salas");
   if (!div) return;
   div.innerHTML = "";
-
   salas.forEach(sala => {
     const premio = calcularPremio(sala);
     div.innerHTML += `
@@ -621,28 +565,89 @@ function renderSalas() {
 function entrarSala(nome) {
   pararSomAmbiente();
   const sala = salas.find(s => s.nome === nome);
-  if (sala.status === "jogando") return;
+
+  if (sala.status === "jogando") {
+    mostrarModalAviso("🔒 Partida em andamento", "Aguarde o fim desta partida para entrar na próxima rodada.");
+    return;
+  }
 
   if (saldo < sala.valor) {
     mostrarModalSaldoInsuficiente(sala.valor);
     return;
   }
 
+  function mostrarModalAviso(titulo, mensagem) {
+  const modal = document.createElement("div");
+  modal.className = "modal-overlay";
+  modal.innerHTML = `
+    <div class="modal-box">
+      <div class="modal-icon">🔒</div>
+      <h2>${titulo}</h2>
+      <p>${mensagem}</p>
+      <button class="btn-secondary" onclick="this.closest('.modal-overlay').remove()">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  setTimeout(() => modal.remove(), 3000);
+}
+
   salaAtual = sala;
   saldo -= sala.valor;
   atualizarSaldo();
 
-  // prepara bots da arena com scores zerados
   botsArena = sala.bots.map(b => ({
-    nome: b.nome,
-    foto: b.foto,
-    score: 0,
-    // cliques finais entre 292 e 319
+    nome: b.nome, foto: b.foto, score: 0,
     alvo: Math.floor(Math.random() * 28) + 292
   }));
 
   document.getElementById("arena").classList.remove("hidden");
-  iniciarArena();
+
+  // ✅ Se sala ainda aguardando → mostra tela de espera
+  if (sala.status === "aguardando") {
+    mostrarEspera();
+  } else {
+    // sala já está em jogo, entra direto
+    iniciarArena();
+  }
+}
+
+// =============================
+// ⏳ TELA DE ESPERA NA ARENA
+// =============================
+
+function mostrarEspera() {
+  const overlay = document.getElementById("arenaEspera");
+  const countEl = document.getElementById("esperaCount");
+
+  overlay.classList.remove("hidden");
+
+  // desabilita botão de clique
+  const btn = document.getElementById("clickBtn");
+  if (btn) btn.disabled = true;
+
+  // atualiza contador sincronizado com tempoGlobal
+  countEl.innerText = tempoGlobal;
+
+  clearInterval(esperaInterval);
+  esperaInterval = setInterval(() => {
+    countEl.innerText = tempoGlobal;
+
+    // verifica se a sala entrou em jogo
+    if (salaAtual && salaAtual.status === "jogando") {
+      clearInterval(esperaInterval);
+      overlay.classList.add("hidden");
+      if (btn) btn.disabled = false;
+      iniciarArena();
+    }
+
+    // fallback: se tempoGlobal chegou a 0 e não atualizou ainda
+    if (tempoGlobal <= 1) {
+      clearInterval(esperaInterval);
+      overlay.classList.add("hidden");
+      if (btn) btn.disabled = false;
+      iniciarArena();
+    }
+  }, 500);
 }
 
 // =============================
@@ -657,14 +662,10 @@ function mostrarModalSaldoInsuficiente(valorNecessario) {
     <div class="modal-box">
       <div class="modal-icon">💰</div>
       <h2>Saldo insuficiente</h2>
-      <p>Você precisa de <strong>R$ ${valorNecessario.toFixed(2)}</strong> para entrar nesta sala.</p>
-      <p style="color:#6b7280; font-size:13px;">Seu saldo atual: R$ ${saldo.toFixed(2)}</p>
-      <button class="btn-primary" onclick="fecharModalSaldo(); abrirWallet(); depositar();">
-        💳 Depositar agora
-      </button>
-      <button class="btn-secondary" style="margin-top:8px" onclick="fecharModalSaldo()">
-        Fechar
-      </button>
+      <p>Você precisa de <strong>R$ ${Number(valorNecessario).toFixed(2)}</strong> para entrar nesta sala.</p>
+      <p style="color:#6b7280; font-size:13px;">Seu saldo: R$ ${saldo.toFixed(2)}</p>
+      <button class="btn-primary" onclick="fecharModalSaldo(); abrirWallet(); depositar();">💳 Depositar agora</button>
+      <button class="btn-secondary" style="margin-top:8px" onclick="fecharModalSaldo()">Fechar</button>
     </div>
   `;
   document.body.appendChild(modal);
@@ -683,7 +684,6 @@ function iniciarArena() {
   cliques = 0;
   tempo = 30;
   posicaoAnterior = null;
-
   botsArena.forEach(bot => { bot.score = 0; });
 
   atualizarRankingArena();
@@ -694,22 +694,18 @@ function iniciarArena() {
     tempo--;
     const el = document.getElementById("arenaTimer");
     if (el) el.innerText = tempo + "s";
-
     if (tempo <= 0) {
       clearInterval(timerInterval);
       clearInterval(botInterval);
       mostrarResultado();
       iniciarSomAmbiente();
-      setTimeout(() => {
-        document.getElementById("arena").classList.add("hidden");
-      }, 2000);
+      setTimeout(() => { document.getElementById("arena").classList.add("hidden"); }, 2000);
     }
   }, 1000);
 
-  // bots progridem para atingir alvo em 30s
   botInterval = setInterval(() => {
     botsArena.forEach(bot => {
-      const progresso = bot.alvo / 60; // em 30s com 2 updates/s
+      const progresso = bot.alvo / 60;
       bot.score = Math.min(bot.score + progresso + Math.random() * 1.5, bot.alvo);
     });
     atualizarRankingArena();
@@ -725,7 +721,6 @@ function atualizarRankingArena() {
 
   jogadores.sort((a, b) => b.score - a.score);
   const max = jogadores[0].score || 1;
-
   const div = document.getElementById("arenaRanking");
   if (!div) return;
   div.innerHTML = "";
@@ -739,29 +734,25 @@ function atualizarRankingArena() {
     const fotoEl = j.foto
       ? `<img src="${j.foto}" class="rank-foto" style="width:24px;height:24px;margin-right:6px;" />`
       : `<div class="rank-avatar" style="width:24px;height:24px;font-size:10px;margin-right:6px;">${j.nome.charAt(0)}</div>`;
-
     div.innerHTML += `
       <div class="rank-player ${eVoce ? "voce" : ""}">
         <div style="display:flex; justify-content:space-between; font-size:13px; align-items:center;">
           <div style="display:flex;align-items:center;">${fotoEl}<span>${i + 1}º ${j.nome}</span></div>
           <span>${Math.floor(j.score)}</span>
         </div>
-        <div class="barra">
-          <div class="progresso" style="width:${(j.score / max) * 100}%"></div>
-        </div>
+        <div class="barra"><div class="progresso" style="width:${(j.score / max) * 100}%"></div></div>
       </div>
     `;
   });
 }
 
-
-// ✅ CLIQUE — apenas +1 por clique
 function configurarClickBtn() {
   const btn = document.getElementById("clickBtn");
   if (!btn) return;
   btn.onclick = null;
 
   btn.addEventListener("click", () => {
+    if (btn.disabled) return;
     if (!cliqueValido()) return;
 
     const agora = Date.now();
@@ -776,14 +767,11 @@ function configurarClickBtn() {
     .catch(err => console.log("Erro no click:", err));
 
     ultimoClique = agora;
-
-    // ✅ sempre +1, sem combo duplicado
     somClick();
     cliques += 1;
 
     const plus = document.createElement("div");
-    plus.innerText = "+1";
-    plus.className = "plus";
+    plus.innerText = "+1"; plus.className = "plus";
     plus.style.left = Math.random() * 60 + 20 + "%";
     plus.style.top = "30%";
     document.getElementById("clickArea").appendChild(plus);
@@ -794,17 +782,13 @@ function configurarClickBtn() {
 }
 
 // =============================
-// 🏁 RESULTADO + ANIMAÇÃO VITÓRIA
+// 🏁 RESULTADO
 // =============================
 
 function mostrarResultado() {
   somVitoria();
-
   const nomeJogador = usuarioLogado ? usuarioLogado.nome : "VOCÊ";
-  let jogadores = [
-    { nome: nomeJogador, score: cliques },
-    ...botsArena.map(b => ({ nome: b.nome, score: b.score }))
-  ];
+  let jogadores = [{ nome: nomeJogador, score: cliques }, ...botsArena.map(b => ({ nome: b.nome, score: b.score }))];
   jogadores.sort((a, b) => b.score - a.score);
 
   const posicao = jogadores.findIndex(j => j.nome === nomeJogador) + 1;
@@ -816,12 +800,9 @@ function mostrarResultado() {
 
   if (posicao === 1 && salaAtual) {
     const premio = parseFloat(calcularPremio(salaAtual));
-
-    // atualiza saldo
     saldo += premio;
     atualizarSaldo();
 
-    // salva no servidor
     fetch(`${window.location.origin}/creditar-vitoria`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -830,14 +811,9 @@ function mostrarResultado() {
 
     titulo.innerText = "VOCÊ VENCEU! 🚀🔥";
     titulo.classList.add("vitoria");
-    if (ganhoEl) {
-      ganhoEl.innerText = `+R$ ${premio.toFixed(2)}`;
-      ganhoEl.classList.remove("hidden");
-    }
-
+    if (ganhoEl) { ganhoEl.innerText = `+R$ ${premio.toFixed(2)}`; ganhoEl.classList.remove("hidden"); }
     soltarConfete();
     animarPremio(premio);
-
   } else {
     titulo.innerText = `${posicao}º LUGAR`;
     texto.innerText = "Você quase chegou lá! Tente novamente.";
@@ -849,41 +825,18 @@ function mostrarResultado() {
 }
 
 function animarPremio(valor) {
-  // moedas subindo
   for (let i = 0; i < 8; i++) {
     setTimeout(() => {
       const moeda = document.createElement("div");
       moeda.innerText = "💰";
-      moeda.style.cssText = `
-        position: fixed;
-        font-size: 28px;
-        left: ${Math.random() * 80 + 10}%;
-        bottom: 20%;
-        animation: subirMoeda 1.2s ease forwards;
-        z-index: 10000;
-        pointer-events: none;
-      `;
+      moeda.style.cssText = `position:fixed; font-size:28px; left:${Math.random()*80+10}%; bottom:20%; animation:subirMoeda 1.2s ease forwards; z-index:10000; pointer-events:none;`;
       document.body.appendChild(moeda);
       setTimeout(() => moeda.remove(), 1200);
     }, i * 150);
   }
-
-  // texto de ganho voando
   const ganho = document.createElement("div");
   ganho.innerText = `+R$ ${valor.toFixed(2)}`;
-  ganho.style.cssText = `
-    position: fixed;
-    left: 50%;
-    top: 40%;
-    transform: translateX(-50%);
-    color: #22c55e;
-    font-size: 36px;
-    font-weight: bold;
-    text-shadow: 0 0 20px #22c55e;
-    animation: subirGanho 2s ease forwards;
-    z-index: 10000;
-    pointer-events: none;
-  `;
+  ganho.style.cssText = `position:fixed; left:50%; top:40%; transform:translateX(-50%); color:#22c55e; font-size:36px; font-weight:bold; text-shadow:0 0 20px #22c55e; animation:subirGanho 2s ease forwards; z-index:10000; pointer-events:none;`;
   document.body.appendChild(ganho);
   setTimeout(() => ganho.remove(), 2000);
 }
@@ -899,34 +852,17 @@ function soltarConfete() {
   const ctx = canvas.getContext("2d");
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
-
   let particulas = [];
   for (let i = 0; i < 150; i++) {
-    particulas.push({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      r: Math.random() * 6 + 2,
-      d: Math.random() * 5 + 2,
-      color: `hsl(${Math.random() * 360}, 100%, 50%)`
-    });
+    particulas.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, r: Math.random()*6+2, d: Math.random()*5+2, color: `hsl(${Math.random()*360},100%,50%)` });
   }
-
   function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    particulas.forEach(p => {
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = p.color;
-      ctx.fill();
-    });
-    particulas.forEach(p => {
-      p.y += p.d;
-      if (p.y > canvas.height) { p.y = 0; p.x = Math.random() * canvas.width; }
-    });
+    particulas.forEach(p => { ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fillStyle=p.color; ctx.fill(); });
+    particulas.forEach(p => { p.y+=p.d; if(p.y>canvas.height){p.y=0;p.x=Math.random()*canvas.width;} });
   }
-
   let intervalo = setInterval(draw, 20);
-  setTimeout(() => { clearInterval(intervalo); ctx.clearRect(0, 0, canvas.width, canvas.height); }, 3000);
+  setTimeout(() => { clearInterval(intervalo); ctx.clearRect(0,0,canvas.width,canvas.height); }, 3000);
 }
 
 // =============================
@@ -955,7 +891,6 @@ function iniciarSalas(grupo) {
     sala.status = "jogando";
     sala.emJogo = true;
     sala.tempo = 30;
-
     let intervalo = setInterval(() => {
       sala.tempo--;
       if (sala.tempo <= 0) {
@@ -963,7 +898,7 @@ function iniciarSalas(grupo) {
         sala.status = "aguardando";
         sala.emJogo = false;
         sala.tempo = 30;
-        gerarBotsParaSala(sala); // renova bots
+        gerarBotsParaSala(sala);
         renderSalas();
       }
     }, 1000);
@@ -979,23 +914,13 @@ function abrirWallet() {
   document.getElementById("walletSaldo").innerText = "R$ " + saldo.toFixed(2);
 }
 
-function fecharWallet() {
-  document.getElementById("wallet").classList.add("hidden");
-}
-
-function depositar() {
-  document.getElementById("modalDeposito").classList.remove("hidden");
-}
-
+function fecharWallet() { document.getElementById("wallet").classList.add("hidden"); }
+function depositar() { document.getElementById("modalDeposito").classList.remove("hidden"); }
 function fecharDeposito() {
   document.getElementById("modalDeposito").classList.add("hidden");
   document.getElementById("pixContainer").innerHTML = "";
 }
-
-function sacar() {
-  document.getElementById("modalSaque").classList.remove("hidden");
-}
-
+function sacar() { document.getElementById("modalSaque").classList.remove("hidden"); }
 function fecharSaque() {
   document.getElementById("modalSaque").classList.add("hidden");
   document.getElementById("saqueMsg").classList.add("hidden");
@@ -1005,41 +930,19 @@ async function confirmarSaque() {
   const valor = Number(document.getElementById("inputSaqueValor").value);
   const chave = document.getElementById("inputSaqueChave").value.trim();
   const msgEl = document.getElementById("saqueMsg");
-
   msgEl.classList.add("hidden");
 
-  if (!valor || valor <= 0) {
-    msgEl.innerText = "Digite um valor válido";
-    msgEl.className = "saque-erro";
-    msgEl.classList.remove("hidden");
-    return;
-  }
-  if (!chave) {
-    msgEl.innerText = "Digite sua chave PIX";
-    msgEl.className = "saque-erro";
-    msgEl.classList.remove("hidden");
-    return;
-  }
-  if (valor > saldo) {
-    msgEl.innerText = "Saldo insuficiente";
-    msgEl.className = "saque-erro";
-    msgEl.classList.remove("hidden");
-    return;
-  }
+  if (!valor || valor <= 0) { msgEl.innerText = "Digite um valor válido"; msgEl.className = "saque-erro"; msgEl.classList.remove("hidden"); return; }
+  if (!chave) { msgEl.innerText = "Digite sua chave PIX"; msgEl.className = "saque-erro"; msgEl.classList.remove("hidden"); return; }
+  if (valor > saldo) { msgEl.innerText = "Saldo insuficiente"; msgEl.className = "saque-erro"; msgEl.classList.remove("hidden"); return; }
 
   try {
     const res = await fetch(`${window.location.origin}/sacar`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ valor, userId: usuarioLogado.id, chave_pix: chave })
     });
     const data = await res.json();
-    if (!res.ok) {
-      msgEl.innerText = data.erro || "Erro ao solicitar saque";
-      msgEl.className = "saque-erro";
-      msgEl.classList.remove("hidden");
-      return;
-    }
+    if (!res.ok) { msgEl.innerText = data.erro || "Erro ao solicitar saque"; msgEl.className = "saque-erro"; msgEl.classList.remove("hidden"); return; }
     saldo -= valor;
     atualizarSaldo();
     msgEl.innerText = data.mensagem;
@@ -1057,48 +960,31 @@ async function confirmarSaque() {
 async function confirmarDeposito() {
   const valor = document.getElementById("inputValor").value;
   const container = document.getElementById("pixContainer");
-
-  if (!valor || valor <= 0) {
-    container.innerHTML = "<p style='color:red'>Digite um valor válido</p>";
-    return;
-  }
-
+  if (!valor || valor <= 0) { container.innerHTML = "<p style='color:red'>Digite um valor válido</p>"; return; }
   container.innerHTML = "<p>⏳ Gerando PIX...</p>";
-
   try {
     const res = await fetch(`${window.location.origin}/criar-pagamento`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ valor: Number(valor), userId: usuarioLogado.id })
     });
-
-    if (!res.ok) {
-      container.innerHTML = `<p style="color:red">Erro ao gerar PIX</p>`;
-      return;
-    }
-
+    if (!res.ok) { container.innerHTML = `<p style="color:red">Erro ao gerar PIX</p>`; return; }
     const data = await res.json();
-
-container.innerHTML = `
+    container.innerHTML = `
       <img src="data:image/png;base64,${data.qr_base64}" style="width:200px; margin-top:10px; border-radius:10px;">
       <button onclick="copiarPix('${data.qr_code}')" class="btn-copiar">📋 Copiar PIX</button>
       <div id="feedbackPix" class="hidden"></div>
     `;
-
     const verificar = setInterval(async () => {
       try {
         const r = await fetch(`${window.location.origin}/saldo/${usuarioLogado.id}`);
         const d = await r.json();
         if (d.saldo > saldo) {
-          clearInterval(verificar);
-          saldo = d.saldo;
-          atualizarSaldo();
+          clearInterval(verificar); saldo = d.saldo; atualizarSaldo();
           container.innerHTML = `<div class="pix-sucesso">✅ Depósito realizado com sucesso!</div>`;
           setTimeout(() => fecharDeposito(), 2500);
         }
       } catch(e) {}
     }, 5000);
-
     setTimeout(() => clearInterval(verificar), 600000);
   } catch (err) {
     container.innerHTML = "<p style='color:red'>Erro ao conectar com servidor</p>";
@@ -1114,9 +1000,7 @@ function copiarPix(codigo) {
 function mostrarFeedback(msg) {
   const div = document.getElementById("feedbackPix");
   if (!div) return;
-  div.innerText = msg;
-  div.classList.remove("hidden");
-  div.classList.add("feedback-sucesso");
+  div.innerText = msg; div.classList.remove("hidden"); div.classList.add("feedback-sucesso");
   setTimeout(() => div.classList.add("hidden"), 2000);
 }
 
@@ -1128,8 +1012,7 @@ async function buscarSaldo() {
     const data = await res.json();
     const novoSaldo = data.saldo;
     if (novoSaldo > ultimoSaldo && ultimoSaldo > 0) animarDinheiro(novoSaldo - ultimoSaldo);
-    ultimoSaldo = novoSaldo;
-    saldo = novoSaldo;
+    ultimoSaldo = novoSaldo; saldo = novoSaldo;
     const el = document.getElementById("saldo");
     if (el) el.innerText = "R$ " + novoSaldo.toFixed(2);
   } catch (err) {}
@@ -1145,9 +1028,7 @@ function atualizarSaldo() {
 function animarDinheiro(valor) {
   const div = document.createElement("div");
   div.innerText = `+R$ ${valor.toFixed(2)}`;
-  div.className = "money";
-  div.style.left = "50%";
-  div.style.top = "50%";
+  div.className = "money"; div.style.left = "50%"; div.style.top = "50%";
   document.body.appendChild(div);
   setTimeout(() => div.remove(), 1000);
 }
@@ -1171,33 +1052,23 @@ async function verHistorico() {
   area.classList.remove("hidden");
 }
 
+
 // =============================
 // 👤 PERFIL
 // =============================
 
-function salvarPerfil() {
-  localStorage.setItem("perfil", JSON.stringify(perfil));
-}
-
-function gerarAvatar(nome) {
-  return nome ? nome.charAt(0).toUpperCase() : "?";
-}
+function salvarPerfil() { localStorage.setItem("perfil", JSON.stringify(perfil)); }
+function gerarAvatar(nome) { return nome ? nome.charAt(0).toUpperCase() : "?"; }
 
 function abrirPerfil() {
-  const aproveitamento = perfil.partidas > 0
-    ? Math.round((perfil.vitorias / perfil.partidas) * 100)
-    : 0;
-
+  const aproveitamento = perfil.partidas > 0 ? Math.round((perfil.vitorias / perfil.partidas) * 100) : 0;
   const foto = usuarioLogado && usuarioLogado.foto_url
     ? `<img src="${usuarioLogado.foto_url}" class="perfil-foto-img" onclick="trocarFotoPerfil()" />`
     : `<div class="perfil-avatar" onclick="trocarFotoPerfil()">${gerarAvatar(perfil.nome)}</div>`;
 
   abrirTela(`
     <div class="tela-box perfil-box">
-      <div class="tela-header">
-        <span class="btn-voltar" onclick="fecharTela()">←</span>
-        <h2>Perfil</h2>
-      </div>
+      <div class="tela-header"><span class="btn-voltar" onclick="fecharTela()">←</span><h2>Perfil</h2></div>
       <div class="perfil-header">
         ${foto}
         <p style="font-size:12px; color:#6b7280; margin-top:5px;">Toque na foto para alterar</p>
@@ -1205,10 +1076,7 @@ function abrirPerfil() {
         <input id="nomePerfil" value="${perfil.nome}" class="input-nome" />
         <p style="color:#6b7280; font-size:13px;">ID: ${perfil.id}</p>
       </div>
-      <div class="perfil-saldo">
-        <span>Saldo atual</span>
-        <h1>R$ ${saldo.toFixed(2)}</h1>
-      </div>
+      <div class="perfil-saldo"><span>Saldo atual</span><h1>R$ ${saldo.toFixed(2)}</h1></div>
       <div class="perfil-stats">
         <div class="stat"><strong>${perfil.partidas}</strong><span>Partidas</span></div>
         <div class="stat"><strong>${perfil.vitorias}</strong><span>Vitórias</span></div>
@@ -1222,9 +1090,7 @@ function abrirPerfil() {
   `);
 }
 
-function trocarFotoPerfil() {
-  document.getElementById("inputFotoPerfil").click();
-}
+function trocarFotoPerfil() { document.getElementById("inputFotoPerfil").click(); }
 
 async function atualizarFotoPerfil(event) {
   const file = event.target.files[0];
@@ -1233,16 +1099,11 @@ async function atualizarFotoPerfil(event) {
   reader.onload = async (e) => {
     try {
       const res = await fetch(`${window.location.origin}/atualizar-foto`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: usuarioLogado.id, foto_base64: e.target.result })
       });
       const data = await res.json();
-      if (data.ok) {
-        usuarioLogado.foto_url = data.foto_url;
-        localStorage.setItem("usuario", JSON.stringify(usuarioLogado));
-        abrirPerfil();
-      }
+      if (data.ok) { usuarioLogado.foto_url = data.foto_url; localStorage.setItem("usuario", JSON.stringify(usuarioLogado)); abrirPerfil(); }
     } catch(e) {}
   };
   reader.readAsDataURL(file);
@@ -1263,13 +1124,8 @@ function salvarNome() {
 // 🗂️ MENU
 // =============================
 
-function abrirMenu() {
-  document.getElementById("menuLateral").classList.remove("hidden");
-}
-
-function fecharMenu() {
-  document.getElementById("menuLateral").classList.add("hidden");
-}
+function abrirMenu() { document.getElementById("menuLateral").classList.remove("hidden"); }
+function fecharMenu() { document.getElementById("menuLateral").classList.add("hidden"); }
 
 function abrirTela(conteudoHTML) {
   const tela = document.getElementById("telaMenu");
@@ -1277,57 +1133,16 @@ function abrirTela(conteudoHTML) {
   tela.classList.remove("hidden");
 }
 
-function fecharTela() {
-  document.getElementById("telaMenu").classList.add("hidden");
-}
+function fecharTela() { document.getElementById("telaMenu").classList.add("hidden"); }
 
 function abrirReclamacoes() {
-  abrirTela(`
-    <div class="tela-box">
-      <div class="tela-header">
-        <span class="btn-voltar" onclick="fecharTela()">←</span>
-        <h2>Reclamações</h2>
-      </div>
-      <div class="tela-content">
-        <p>Descreva sua reclamação abaixo:</p>
-        <textarea placeholder="Escreva aqui..."></textarea>
-        <button class="btn-primary">Enviar</button>
-      </div>
-    </div>
-  `);
+  abrirTela(`<div class="tela-box"><div class="tela-header"><span class="btn-voltar" onclick="fecharTela()">←</span><h2>Reclamações</h2></div><div class="tela-content"><p>Descreva sua reclamação:</p><textarea placeholder="Escreva aqui..."></textarea><button class="btn-primary">Enviar</button></div></div>`);
 }
 
 function abrirConfiguracoes() {
-  abrirTela(`
-    <div class="tela-box">
-      <div class="tela-header">
-        <span class="btn-voltar" onclick="fecharTela()">←</span>
-        <h2>Configurações</h2>
-      </div>
-      <div class="tela-content">
-        <div class="config-item">
-          <span>Som</span>
-          <input type="checkbox" ${somAtivo ? "checked" : ""} onchange="toggleSom()">
-        </div>
-        <div class="config-item">
-          <span>Vibração</span>
-          <input type="checkbox" checked>
-        </div>
-      </div>
-    </div>
-  `);
+  abrirTela(`<div class="tela-box"><div class="tela-header"><span class="btn-voltar" onclick="fecharTela()">←</span><h2>Configurações</h2></div><div class="tela-content"><div class="config-item"><span>Som</span><input type="checkbox" ${somAtivo ? "checked" : ""} onchange="toggleSom()"></div><div class="config-item"><span>Vibração</span><input type="checkbox" checked></div></div></div>`);
 }
 
 function abrirDiretrizes() {
-  abrirTela(`
-    <div class="tela-box">
-      <div class="tela-header">
-        <span class="btn-voltar" onclick="fecharTela()">←</span>
-        <h2>Diretrizes</h2>
-      </div>
-      <div class="tela-content">
-        <p>Use o jogo de forma justa. Bots e trapaças resultam em banimento permanente.</p>
-      </div>
-    </div>
-  `);
+  abrirTela(`<div class="tela-box"><div class="tela-header"><span class="btn-voltar" onclick="fecharTela()">←</span><h2>Diretrizes</h2></div><div class="tela-content"><p>Use o jogo de forma justa. Bots e trapaças resultam em banimento permanente.</p></div></div>`);
 }
