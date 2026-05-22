@@ -13,9 +13,6 @@
   <meta property="og:description" content="Compete em partidas de cliques e ganhe dinheiro real via PIX!" />
   <meta property="og:type" content="website" />
   <meta property="og:image" content="/favicon.png" />
-  <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="Click Arena" />
-  <meta name="twitter:description" content="Ganhe dinheiro clicando mais rápido que os outros!" />
   <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" href="/favicon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -26,7 +23,7 @@
 </head>
 <body>
 
-<!-- PWA INSTALL BANNER -->
+<!-- PWA BANNER -->
 <div id="pwaBanner" class="pwa-banner hidden">
   <div class="pwa-banner-info">
     <div class="pwa-banner-icon">🎮</div>
@@ -41,7 +38,7 @@
   </div>
 </div>
 
-<!-- TELA DE LOGIN -->
+<!-- LOGIN -->
 <div id="telaLogin" class="tela-auth">
   <div class="auth-box">
     <div class="auth-logo">Cl<span class="i-custom">í</span>ck</div>
@@ -54,7 +51,7 @@
   </div>
 </div>
 
-<!-- TELA DE CADASTRO -->
+<!-- CADASTRO -->
 <div id="telaCadastro" class="tela-auth hidden">
   <div class="auth-box">
     <div class="auth-logo">Cl<span class="i-custom">í</span>ck</div>
@@ -82,11 +79,13 @@
       <h2>Menu</h2>
       <span onclick="fecharMenu()">✕</span>
     </div>
-    <div class="menu-item" onclick="abrirPerfil()">👤 Perfil</div>
-    <div class="menu-item" onclick="abrirWallet()">💰 Carteira</div>
-    <div class="menu-item" onclick="abrirConfiguracoes()">⚙️ Configurações</div>
-    <div class="menu-item" onclick="abrirDiretrizes()">📜 Diretrizes</div>
-    <div class="menu-item" onclick="abrirReclamacoes()">🚨 Reclamações</div>
+    <div class="menu-item" onclick="abrirPerfil(); fecharMenu()">👤 Perfil</div>
+    <div class="menu-item" onclick="abrirWallet(); fecharMenu()">💰 Carteira</div>
+    <div class="menu-item" onclick="abrirConvite(); fecharMenu()">🔗 Convidar Amigos</div>
+    <div class="menu-item" onclick="abrirSalasUsuarios(); fecharMenu()">🏟️ Salas de Jogadores</div>
+    <div class="menu-item" onclick="abrirConfiguracoes(); fecharMenu()">⚙️ Configurações</div>
+    <div class="menu-item" onclick="abrirDiretrizes(); fecharMenu()">📜 Diretrizes</div>
+    <div class="menu-item" onclick="abrirReclamacoes(); fecharMenu()">🚨 Reclamações</div>
     <div class="menu-item" onclick="fazerLogout()">🚪 Sair</div>
   </div>
 
@@ -125,14 +124,15 @@
   <!-- ARENA DE COMBATE -->
   <div id="arena" class="arena hidden">
 
-    <!-- ✅ OVERLAY DE ESPERA -->
+    <!-- OVERLAY DE ESPERA -->
     <div id="arenaEspera" class="arena-espera hidden">
       <div class="espera-box">
-        <div class="espera-icone">🔴</div>
-        <div class="espera-titulo">AGUARDANDO INÍCIO</div>
+        <div class="espera-emoji">⚡</div>
+        <div class="espera-titulo">SE PREPARE!</div>
         <div class="espera-sub">A partida começa em</div>
         <div class="espera-count" id="esperaCount">30</div>
         <div class="espera-sub">segundos</div>
+        <div class="espera-dica">💡 Aqueça os dedos!</div>
         <div class="espera-pulso"></div>
       </div>
     </div>
@@ -160,6 +160,7 @@
           </div>
           <div class="barra"><div class="progresso" id="treino-barra" style="width:0%"></div></div>
         </div>
+        <div id="recordesTreino" style="margin-top:12px;"></div>
         <p style="color:#6b7280; font-size:12px; text-align:center; margin-top:10px;">Modo treino — sem custo</p>
       </div>
       <div class="arena-center">
@@ -209,6 +210,7 @@
       <div class="wallet-balance">
         <span>Saldo disponível</span>
         <h1 id="walletSaldo">R$ 0.00</h1>
+        <div id="walletBonus" style="color:#f59e0b; font-size:13px; margin-top:4px;"></div>
       </div>
       <div class="wallet-actions">
         <button onclick="depositar()" class="btn-depositar">Depositar</button>
@@ -226,6 +228,7 @@
       <div id="modalSaque" class="hidden">
         <div class="deposito-box">
           <h3>💸 Solicitar Saque</h3>
+          <p style="color:#9ca3af; font-size:12px; margin:0 0 10px;">Apenas saldo real pode ser sacado, não o bônus.</p>
           <input id="inputSaqueValor" type="number" placeholder="Valor do saque" />
           <input id="inputSaqueChave" type="text" placeholder="Sua chave PIX" />
           <button onclick="confirmarSaque()">Solicitar</button>
@@ -246,7 +249,6 @@
 
 </div>
 
-<!-- PWA -->
 <script>
 let deferredPrompt = null;
 

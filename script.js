@@ -6,6 +6,11 @@ let usuarioLogado = null;
 let fotoBase64 = null;
 
 window.addEventListener("DOMContentLoaded", () => {
+  // verifica convite na URL
+  const params = new URLSearchParams(window.location.search);
+  const convite = params.get("convite");
+  if (convite) localStorage.setItem("codigo_convite", convite);
+
   const sessao = localStorage.getItem("usuario");
   if (sessao) {
     usuarioLogado = JSON.parse(sessao);
@@ -46,29 +51,19 @@ async function fazerCadastro() {
   const erroEl = document.getElementById("cadErro");
   erroEl.classList.add("hidden");
 
-  if (!nome || !email || !senha) {
-    erroEl.innerText = "Preencha todos os campos";
-    erroEl.classList.remove("hidden");
-    return;
-  }
-  if (senha.length < 6) {
-    erroEl.innerText = "A senha precisa ter pelo menos 6 caracteres";
-    erroEl.classList.remove("hidden");
-    return;
-  }
+  if (!nome || !email || !senha) { erroEl.innerText = "Preencha todos os campos"; erroEl.classList.remove("hidden"); return; }
+  if (senha.length < 6) { erroEl.innerText = "A senha precisa ter pelo menos 6 caracteres"; erroEl.classList.remove("hidden"); return; }
+
+  const codigo_convite = localStorage.getItem("codigo_convite") || null;
 
   try {
     const res = await fetch(`${window.location.origin}/cadastro`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nome, email, senha, foto_base64: fotoBase64 })
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nome, email, senha, foto_base64: fotoBase64, codigo_convite })
     });
     const data = await res.json();
-    if (!res.ok) {
-      erroEl.innerText = data.erro || "Erro ao criar conta";
-      erroEl.classList.remove("hidden");
-      return;
-    }
+    if (!res.ok) { erroEl.innerText = data.erro || "Erro ao criar conta"; erroEl.classList.remove("hidden"); return; }
+    localStorage.removeItem("codigo_convite");
     usuarioLogado = data.usuario;
     localStorage.setItem("usuario", JSON.stringify(usuarioLogado));
     iniciarJogo();
@@ -84,24 +79,15 @@ async function fazerLogin() {
   const erroEl = document.getElementById("loginErro");
   erroEl.classList.add("hidden");
 
-  if (!email || !senha) {
-    erroEl.innerText = "Preencha e-mail e senha";
-    erroEl.classList.remove("hidden");
-    return;
-  }
+  if (!email || !senha) { erroEl.innerText = "Preencha e-mail e senha"; erroEl.classList.remove("hidden"); return; }
 
   try {
     const res = await fetch(`${window.location.origin}/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, senha })
     });
     const data = await res.json();
-    if (!res.ok) {
-      erroEl.innerText = data.erro || "Erro ao entrar";
-      erroEl.classList.remove("hidden");
-      return;
-    }
+    if (!res.ok) { erroEl.innerText = data.erro || "Erro ao entrar"; erroEl.classList.remove("hidden"); return; }
     usuarioLogado = data.usuario;
     localStorage.setItem("usuario", JSON.stringify(usuarioLogado));
     iniciarJogo();
@@ -126,12 +112,14 @@ function iniciarJogo() {
   perfil.id = usuarioLogado.id;
   perfil.partidas = usuarioLogado.partidas || 0;
   perfil.vitorias = usuarioLogado.vitorias || 0;
+  perfil.derrotas = usuarioLogado.derrotas || 0;
   saldo = usuarioLogado.saldo || 0;
+  bonus = usuarioLogado.bonus || 0;
 
   atualizarSaldo();
   iniciarBotsSalas();
   renderSalas();
-  iniciarTimer();
+  sincronizarTimer();
   buscarSaldo();
   buscarRankingDiario();
 
@@ -156,16 +144,17 @@ let posicaoAnterior = null;
 let treinoInterval = null;
 let treinoCliquesCount = 0;
 let treinoTempo = 30;
-let esperaInterval = null; // ✅ timer da tela de espera
+let esperaInterval = null;
 
 let ambientOsc = null;
 let ambientGain = null;
 let ultimoSaldo = 0;
 let audioCtx = null;
 let somAtivo = true;
+let bonus = 0;
 
 let perfil = JSON.parse(localStorage.getItem("perfil")) || {
-  nome: "Jogador", id: "user1", partidas: 0, vitorias: 0
+  nome: "Jogador", id: "user1", partidas: 0, vitorias: 0, derrotas: 0
 };
 
 let combo = 0;
@@ -176,6 +165,22 @@ let tempo = 30;
 let salaAtual = null;
 
 // =============================
+// ⏱️ TIMER SINCRONIZADO COM SERVIDOR
+// =============================
+
+async function sincronizarTimer() {
+  try {
+    const res = await fetch(`${window.location.origin}/tempo-global`);
+    const data = await res.json();
+    tempoGlobal = data.tempo;
+  } catch(e) {
+    tempoGlobal = 30 - (Math.floor(Date.now() / 1000) % 30);
+  }
+
+  iniciarTimer();
+}
+
+// =============================
 // 🤖 BOTS DAS SALAS
 // =============================
 
@@ -184,7 +189,11 @@ const nomesBot = [
   "Rafael Souza", "Fernanda Dias", "Lucas Oliveira", "Beatriz Nunes",
   "Thiago Alves", "Camila Ferreira", "Bruno Santos", "Larissa Gomes",
   "Diego Martins", "Leticia Carvalho", "Mateus Ribeiro", "Vanessa Pereira",
-  "Felipe Araujo", "Isabela Castro", "Gustavo Lima", "Patricia Moura"
+  "Felipe Araujo", "Isabela Castro", "Gustavo Lima", "Patricia Moura",
+  "Anderson Lima", "Mariana Costa", "Ricardo Souza", "Juliana Ferreira",
+  "Eduardo Santos", "Gabriela Silva", "Leandro Oliveira", "Amanda Rocha",
+  "Marcos Alves", "Natalia Gomes", "Vinicius Dias", "Priscila Carvalho",
+  "Rodrigo Martins", "Aline Ribeiro", "Fabio Pereira", "Tatiane Lima"
 ];
 
 const fotosBot = [
@@ -208,6 +217,22 @@ const fotosBot = [
   "https://randomuser.me/api/portraits/women/9.jpg",
   "https://randomuser.me/api/portraits/men/99.jpg",
   "https://randomuser.me/api/portraits/women/47.jpg",
+  "https://randomuser.me/api/portraits/men/12.jpg",
+  "https://randomuser.me/api/portraits/women/33.jpg",
+  "https://randomuser.me/api/portraits/men/45.jpg",
+  "https://randomuser.me/api/portraits/women/58.jpg",
+  "https://randomuser.me/api/portraits/men/71.jpg",
+  "https://randomuser.me/api/portraits/women/22.jpg",
+  "https://randomuser.me/api/portraits/men/63.jpg",
+  "https://randomuser.me/api/portraits/women/91.jpg",
+  "https://randomuser.me/api/portraits/men/38.jpg",
+  "https://randomuser.me/api/portraits/women/16.jpg",
+  "https://randomuser.me/api/portraits/men/54.jpg",
+  "https://randomuser.me/api/portraits/women/69.jpg",
+  "https://randomuser.me/api/portraits/men/82.jpg",
+  "https://randomuser.me/api/portraits/women/37.jpg",
+  "https://randomuser.me/api/portraits/men/29.jpg",
+  "https://randomuser.me/api/portraits/women/48.jpg",
 ];
 
 const salas = [
@@ -223,9 +248,10 @@ let grupoAtual = "A";
 let botsArena = [];
 
 function gerarBotsParaSala(sala) {
-  const qtd = Math.floor(Math.random() * 11) + 7;
+  // 18 a 42 bots
+  const qtd = Math.floor(Math.random() * 25) + 18;
   const indices = [];
-  while (indices.length < qtd) {
+  while (indices.length < Math.min(qtd, nomesBot.length)) {
     const i = Math.floor(Math.random() * nomesBot.length);
     if (!indices.includes(i)) indices.push(i);
   }
@@ -237,14 +263,14 @@ function iniciarBotsSalas() {
   salas.forEach(sala => gerarBotsParaSala(sala));
   salas.forEach(sala => {
     const totalBots = sala.bots.length;
-    sala.jogadores = Math.floor(totalBots * 0.4);
+    sala.jogadores = Math.floor(totalBots * 0.5);
     let adicionados = sala.jogadores;
     const entrar = setInterval(() => {
       if (adicionados >= totalBots || sala.emJogo) { clearInterval(entrar); return; }
       adicionados++;
       sala.jogadores = adicionados;
       renderSalas();
-    }, Math.random() * 3000 + 1000);
+    }, Math.random() * 2000 + 800);
   });
 }
 
@@ -293,10 +319,8 @@ function pararSomAmbiente() {
 
 function somClick() {
   if (!somAtivo || !audioCtx) return;
-  let osc = audioCtx.createOscillator();
-  let gain = audioCtx.createGain();
-  osc.frequency.value = 600; osc.type = "square";
-  gain.gain.value = 0.004;
+  let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
+  osc.frequency.value = 600; osc.type = "square"; gain.gain.value = 0.004;
   osc.connect(gain); gain.connect(audioCtx.destination);
   osc.start(); osc.stop(audioCtx.currentTime + 0.05);
 }
@@ -321,14 +345,16 @@ function somVitoria() {
   osc.start(); osc.stop(audioCtx.currentTime + 0.5);
 }
 
+// 📳 Vibração no clique
+function vibrar() {
+  if (navigator.vibrate) navigator.vibrate(30);
+}
+
 // =============================
 // 🛡️ ANTI-BOT
 // =============================
 
-setInterval(() => {
-  if (cliquesSegundo > 15) console.log("🚨 Cliques muito rápidos");
-  cliquesSegundo = 0;
-}, 1000);
+setInterval(() => { if (cliquesSegundo > 15) console.log("🚨 Cliques rápidos"); cliquesSegundo = 0; }, 1000);
 
 function cliqueValido() {
   const agora = Date.now();
@@ -375,9 +401,7 @@ async function carregarMensagens() {
     container.innerHTML = "";
     mensagens.forEach(m => {
       const souEu = usuarioLogado && m.user_id === usuarioLogado.id;
-      const foto = m.foto_url
-        ? `<img src="${m.foto_url}" class="chat-foto" />`
-        : `<div class="chat-avatar">${m.nome.charAt(0).toUpperCase()}</div>`;
+      const foto = m.foto_url ? `<img src="${m.foto_url}" class="chat-foto" />` : `<div class="chat-avatar">${m.nome.charAt(0).toUpperCase()}</div>`;
       container.innerHTML += `
         <div class="chat-msg ${souEu ? "chat-msg-eu" : ""}">
           ${!souEu ? foto : ""}
@@ -400,29 +424,55 @@ async function enviarMensagem() {
   input.value = "";
   try {
     await fetch(`${window.location.origin}/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId: usuarioLogado.id, nome: usuarioLogado.nome, foto_url: usuarioLogado.foto_url, mensagem: msg })
     });
     carregarMensagens();
   } catch(e) {}
 }
 
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && chatAberto) enviarMensagem();
-});
+document.addEventListener("keydown", (e) => { if (e.key === "Enter" && chatAberto) enviarMensagem(); });
 
 // =============================
-// 🏋️ TREINO
+// 🏋️ TREINO + RECORDES
 // =============================
 
-function abrirTreino() {
+let recordesTreino = [];
+
+async function abrirTreino() {
   treinoCliquesCount = 0;
   treinoTempo = 30;
   document.getElementById("arenaTreino").classList.remove("hidden");
   document.getElementById("treinoCliques").innerText = "0";
   document.getElementById("treino-barra").style.width = "0%";
+
+  // carrega recordes
+  if (usuarioLogado) {
+    try {
+      const res = await fetch(`${window.location.origin}/recordes-treino/${usuarioLogado.id}`);
+      recordesTreino = await res.json();
+      renderRecordesTreino();
+    } catch(e) {}
+  }
+
   iniciarTreino();
+}
+
+function renderRecordesTreino() {
+  const div = document.getElementById("recordesTreino");
+  if (!div) return;
+  if (!recordesTreino.length) {
+    div.innerHTML = `<p style="color:#6b7280; font-size:12px; text-align:center;">Sem recordes ainda</p>`;
+    return;
+  }
+  const medalhas = ["🥇", "🥈", "🥉"];
+  div.innerHTML = `<p style="color:#9ca3af; font-size:12px; margin-bottom:6px;">Seus recordes:</p>` +
+    recordesTreino.map((r, i) => `
+      <div style="display:flex; justify-content:space-between; font-size:13px; padding:4px 0; border-bottom:1px solid #1f2937;">
+        <span>${medalhas[i]} ${i + 1}º recorde</span>
+        <span style="color:#22c55e; font-weight:bold;">${r.cliques} cliques</span>
+      </div>
+    `).join("");
 }
 
 function fecharTreino() {
@@ -440,12 +490,21 @@ function iniciarTreino() {
     if (treinoTempo <= 0) {
       clearInterval(treinoInterval);
       document.getElementById("arenaTreino").classList.add("hidden");
+
+      // salva recorde
+      if (usuarioLogado) {
+        fetch(`${window.location.origin}/recorde-treino`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: usuarioLogado.id, cliques: treinoCliquesCount })
+        }).catch(() => {});
+      }
+
       const titulo = document.getElementById("resultadoTitulo");
       const texto = document.getElementById("resultadoTexto");
       titulo.classList.remove("vitoria", "derrota");
       titulo.classList.add("vitoria");
       titulo.innerText = "🏋️ TREINO CONCLUÍDO";
-      texto.innerText = `Você fez ${treinoCliquesCount} cliques! Continue treinando.`;
+      texto.innerText = `Você fez ${treinoCliquesCount} cliques!`;
       document.getElementById("resultado").classList.remove("hidden");
     }
   }, 1000);
@@ -459,14 +518,15 @@ function configurarClickBtnTreino() {
     if (!cliqueValido()) return;
     treinoCliquesCount++;
     somClick();
+    vibrar();
     const el = document.getElementById("treinoCliques");
     if (el) el.innerText = treinoCliquesCount;
     const barra = document.getElementById("treino-barra");
     if (barra) barra.style.width = Math.min((treinoCliquesCount / 200) * 100, 100) + "%";
     const plus = document.createElement("div");
-    plus.innerText = "+1"; plus.className = "plus";
-    plus.style.left = Math.random() * 60 + 20 + "%";
-    plus.style.top = "30%";
+    plus.innerText = "+1"; plus.className = "plus-treino";
+    plus.style.left = Math.random() * 40 + 30 + "%";
+    plus.style.top = "10%";
     document.getElementById("clickAreaTreino").appendChild(plus);
     setTimeout(() => plus.remove(), 800);
   });
@@ -491,12 +551,27 @@ function renderRanking() {
   const div = document.getElementById("ranking");
   if (!div) return;
   div.innerHTML = "<h3>🏆 Top jogadores hoje</h3>";
-  if (!rankingDiario.length) {
-    div.innerHTML += `<p style="text-align:center; color:#6b7280; padding:20px;">Nenhuma partida hoje ainda</p>`;
-    return;
-  }
+
   const icones = ["🥇", "🥈", "🥉"];
   const classes = ["gold", "silver", "bronze"];
+
+  if (!rankingDiario.length) {
+    // mostra o próprio usuário mesmo sem partidas
+    if (usuarioLogado) {
+      const foto = usuarioLogado.foto_url ? `<img src="${usuarioLogado.foto_url}" class="rank-foto" />` : `<div class="rank-avatar">${usuarioLogado.nome.charAt(0)}</div>`;
+      div.innerHTML += `
+        <p style="text-align:center; color:#6b7280; font-size:13px; padding:10px 0;">Nenhuma partida hoje ainda</p>
+        <div class="rank-card voce-rank">
+          <div class="rank-left"><div class="rank-icon">—</div>${foto}
+         <div><div class="rank-name">${usuarioLogado.nome} (você)</div><div class="rank-info">0 vitórias • 0 cliques</div></div>
+          </div>
+          <div class="rank-money">R$ 0</div>
+        </div>
+      `;
+    }
+    return;
+  }
+
   rankingDiario.slice(0, 3).forEach((j, i) => {
     const foto = j.foto_url ? `<img src="${j.foto_url}" class="rank-foto" />` : `<div class="rank-avatar">${j.nome.charAt(0).toUpperCase()}</div>`;
     div.innerHTML += `
@@ -509,11 +584,13 @@ function renderRanking() {
       </div>
     `;
   });
+
+  // sempre mostra posição do usuário
   if (usuarioLogado) {
     const pos = rankingDiario.findIndex(j => j.user_id === usuarioLogado.id);
     if (pos >= 3) {
       const eu = rankingDiario[pos];
-      const foto = eu.foto_url ? `<img src="${eu.foto_url}" class="rank-foto" />` : `<div class="rank-avatar">${eu.nome.charAt(0).toUpperCase()}</div>`;
+      const foto = eu.foto_url ? `<img src="${eu.foto_url}" class="rank-foto" />` : `<div class="rank-avatar">${eu.nome.charAt(0)}</div>`;
       div.innerHTML += `
         <div class="rank-separador">• • •</div>
         <div class="rank-card voce-rank">
@@ -521,6 +598,18 @@ function renderRanking() {
             <div><div class="rank-name">${eu.nome} (você)</div><div class="rank-info">${eu.vitorias} vitórias • ${eu.cliques} cliques</div></div>
           </div>
           <div class="rank-money">R$ ${eu.ganho}</div>
+        </div>
+      `;
+    } else if (pos === -1) {
+      // usuário não jogou ainda
+      const foto = usuarioLogado.foto_url ? `<img src="${usuarioLogado.foto_url}" class="rank-foto" />` : `<div class="rank-avatar">${usuarioLogado.nome.charAt(0)}</div>`;
+      div.innerHTML += `
+        <div class="rank-separador">• • •</div>
+        <div class="rank-card voce-rank">
+          <div class="rank-left"><div class="rank-icon">—</div>${foto}
+            <div><div class="rank-name">${usuarioLogado.nome} (você)</div><div class="rank-info">0 vitórias • 0 cliques</div></div>
+          </div>
+          <div class="rank-money">R$ 0</div>
         </div>
       `;
     }
@@ -532,8 +621,7 @@ function renderRanking() {
 // =============================
 
 function calcularPremio(sala) {
-  const total = sala.jogadores * sala.valor;
-  return (total * 0.7).toFixed(2);
+  return ((sala.jogadores * sala.valor) * 0.7).toFixed(2);
 }
 
 function renderSalas() {
@@ -542,18 +630,19 @@ function renderSalas() {
   div.innerHTML = "";
   salas.forEach(sala => {
     const premio = calcularPremio(sala);
+    const jogAtivos = `<span class="jog-ativo">${sala.jogadores}</span>/${sala.max}`;
     div.innerHTML += `
-      <div class="sala" onclick="entrarSala('${sala.nome}')">
+      <div class="sala ${sala.status === 'jogando' ? 'sala-bloqueada' : ''}" onclick="entrarSala('${sala.nome}')">
         <div class="sala-left">
           <b>${sala.nome}</b>
-          <span>${sala.jogadores}/${sala.max} jogadores</span>
+          <span class="sala-jogadores">${jogAtivos} jogadores</span>
         </div>
         <div class="sala-right">
           <div class="sala-premio">🏆 R$ ${premio}</div>
           <div class="sala-entrada">Entrada: R$ ${sala.valor}</div>
           <div class="${sala.status === 'jogando' ? 'red' : 'green'}">
             ${sala.status === 'jogando'
-              ? '🔥 Em jogo (' + sala.tempo + 's)'
+              ? '🔒 Em jogo (' + sala.tempo + 's)'
               : '⏳ Começa em ' + tempoGlobal.toString().padStart(2, '0') + 's'}
           </div>
         </div>
@@ -571,12 +660,44 @@ function entrarSala(nome) {
     return;
   }
 
-  if (saldo < sala.valor) {
+  const saldoTotal = saldo + bonus;
+  if (saldoTotal < sala.valor) {
     mostrarModalSaldoInsuficiente(sala.valor);
     return;
   }
 
-  function mostrarModalAviso(titulo, mensagem) {
+  salaAtual = sala;
+
+  // desconta priorizando bônus
+  if (bonus >= sala.valor) {
+    bonus -= sala.valor;
+  } else {
+    saldo -= (sala.valor - bonus);
+    bonus = 0;
+  }
+  atualizarSaldo();
+
+  // ✅ desconta no servidor também
+  fetch(`${window.location.origin}/descontar-entrada`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId: usuarioLogado.id, valor: sala.valor })
+  }).catch(() => {});
+
+  botsArena = sala.bots.map(b => ({
+    nome: b.nome, foto: b.foto, score: 0,
+    alvo: Math.floor(Math.random() * 33) + 152 // 152 a 184
+  }));
+
+  document.getElementById("arena").classList.remove("hidden");
+
+  if (sala.status === "aguardando") {
+    mostrarEspera();
+  } else {
+    iniciarArena();
+  }
+}
+
+function mostrarModalAviso(titulo, mensagem) {
   const modal = document.createElement("div");
   modal.className = "modal-overlay";
   modal.innerHTML = `
@@ -591,61 +712,39 @@ function entrarSala(nome) {
   setTimeout(() => modal.remove(), 3000);
 }
 
-  salaAtual = sala;
-  saldo -= sala.valor;
-  atualizarSaldo();
-
-  botsArena = sala.bots.map(b => ({
-    nome: b.nome, foto: b.foto, score: 0,
-    alvo: Math.floor(Math.random() * 28) + 292
-  }));
-
-  document.getElementById("arena").classList.remove("hidden");
-
-  // ✅ Se sala ainda aguardando → mostra tela de espera
-  if (sala.status === "aguardando") {
-    mostrarEspera();
-  } else {
-    // sala já está em jogo, entra direto
-    iniciarArena();
-  }
-}
-
 // =============================
-// ⏳ TELA DE ESPERA NA ARENA
+// ⏳ TELA DE ESPERA — mais leve
 // =============================
 
 function mostrarEspera() {
   const overlay = document.getElementById("arenaEspera");
   const countEl = document.getElementById("esperaCount");
-
   overlay.classList.remove("hidden");
 
-  // desabilita botão de clique
   const btn = document.getElementById("clickBtn");
   if (btn) btn.disabled = true;
 
-  // atualiza contador sincronizado com tempoGlobal
   countEl.innerText = tempoGlobal;
 
   clearInterval(esperaInterval);
   esperaInterval = setInterval(() => {
     countEl.innerText = tempoGlobal;
 
-    // verifica se a sala entrou em jogo
     if (salaAtual && salaAtual.status === "jogando") {
       clearInterval(esperaInterval);
       overlay.classList.add("hidden");
       if (btn) btn.disabled = false;
       iniciarArena();
+      return;
     }
 
-    // fallback: se tempoGlobal chegou a 0 e não atualizou ainda
     if (tempoGlobal <= 1) {
       clearInterval(esperaInterval);
-      overlay.classList.add("hidden");
-      if (btn) btn.disabled = false;
-      iniciarArena();
+      setTimeout(() => {
+        overlay.classList.add("hidden");
+        if (btn) btn.disabled = false;
+        iniciarArena();
+      }, 1000);
     }
   }, 500);
 }
@@ -662,9 +761,9 @@ function mostrarModalSaldoInsuficiente(valorNecessario) {
     <div class="modal-box">
       <div class="modal-icon">💰</div>
       <h2>Saldo insuficiente</h2>
-      <p>Você precisa de <strong>R$ ${Number(valorNecessario).toFixed(2)}</strong> para entrar nesta sala.</p>
-      <p style="color:#6b7280; font-size:13px;">Seu saldo: R$ ${saldo.toFixed(2)}</p>
-      <button class="btn-primary" onclick="fecharModalSaldo(); abrirWallet(); depositar();">💳 Depositar agora</button>
+      <p>Você precisa de <strong>R$ ${Number(valorNecessario).toFixed(2)}</strong> para entrar.</p>
+      <p style="color:#6b7280; font-size:13px;">Saldo: R$ ${saldo.toFixed(2)} + Bônus: R$ ${bonus.toFixed(2)}</p>
+      <button class="btn-primary" onclick="fecharModalSaldo(); abrirWallet(); depositar();">💳 Depositar</button>
       <button class="btn-secondary" style="margin-top:8px" onclick="fecharModalSaldo()">Fechar</button>
     </div>
   `;
@@ -677,7 +776,7 @@ function fecharModalSaldo() {
 }
 
 // =============================
-// ⚔️ ARENA DE COMBATE
+// ⚔️ ARENA
 // =============================
 
 function iniciarArena() {
@@ -703,10 +802,10 @@ function iniciarArena() {
     }
   }, 1000);
 
-  botInterval = setInterval(() => {
+botInterval = setInterval(() => {
     botsArena.forEach(bot => {
       const progresso = bot.alvo / 60;
-      bot.score = Math.min(bot.score + progresso + Math.random() * 1.5, bot.alvo);
+      bot.score = Math.min(bot.score + progresso + Math.random() * 1.2, bot.alvo);
     });
     atualizarRankingArena();
   }, 500);
@@ -725,18 +824,19 @@ function atualizarRankingArena() {
   if (!div) return;
   div.innerHTML = "";
 
-  let posicao = jogadores.findIndex(j => j.nome === nomeJogador) + 1;
-  if (posicaoAnterior !== null && posicao < posicaoAnterior) somUltrapassar();
-  posicaoAnterior = posicao;
+  const posicaoAtual = jogadores.findIndex(j => j.nome === nomeJogador) + 1;
+  if (posicaoAnterior !== null && posicaoAtual < posicaoAnterior) somUltrapassar();
+  posicaoAnterior = posicaoAtual;
 
+  // mostra top 4
   jogadores.slice(0, 4).forEach((j, i) => {
     const eVoce = j.nome === nomeJogador;
     const fotoEl = j.foto
-      ? `<img src="${j.foto}" class="rank-foto" style="width:24px;height:24px;margin-right:6px;" />`
-      : `<div class="rank-avatar" style="width:24px;height:24px;font-size:10px;margin-right:6px;">${j.nome.charAt(0)}</div>`;
+      ? `<img src="${j.foto}" class="rank-foto" style="width:22px;height:22px;margin-right:5px;" />`
+      : `<div class="rank-avatar" style="width:22px;height:22px;font-size:9px;margin-right:5px;">${j.nome.charAt(0)}</div>`;
     div.innerHTML += `
       <div class="rank-player ${eVoce ? "voce" : ""}">
-        <div style="display:flex; justify-content:space-between; font-size:13px; align-items:center;">
+        <div style="display:flex; justify-content:space-between; font-size:12px; align-items:center;">
           <div style="display:flex;align-items:center;">${fotoEl}<span>${i + 1}º ${j.nome}</span></div>
           <span>${Math.floor(j.score)}</span>
         </div>
@@ -744,6 +844,24 @@ function atualizarRankingArena() {
       </div>
     `;
   });
+
+  // ✅ sempre mostra posição do jogador se não estiver no top 4
+  if (posicaoAtual > 4) {
+    const eu = jogadores[posicaoAtual - 1];
+    const fotoEl = eu.foto
+      ? `<img src="${eu.foto}" class="rank-foto" style="width:22px;height:22px;margin-right:5px;" />`
+      : `<div class="rank-avatar" style="width:22px;height:22px;font-size:9px;margin-right:5px;">${eu.nome.charAt(0)}</div>`;
+    div.innerHTML += `
+      <div style="text-align:center; color:#374151; font-size:11px; margin:3px 0;">• • •</div>
+      <div class="rank-player voce">
+        <div style="display:flex; justify-content:space-between; font-size:12px; align-items:center;">
+          <div style="display:flex;align-items:center;">${fotoEl}<span>${posicaoAtual}º ${eu.nome}</span></div>
+          <span>${Math.floor(eu.score)}</span>
+        </div>
+        <div class="barra"><div class="progresso" style="width:${(eu.score / max) * 100}%"></div></div>
+      </div>
+    `;
+  }
 }
 
 function configurarClickBtn() {
@@ -758,22 +876,20 @@ function configurarClickBtn() {
     const agora = Date.now();
 
     fetch(`${window.location.origin}/click`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId: perfil.id, timestamp: agora })
-    })
-    .then(res => res.json())
-    .then(data => { if (!data.ok) return; })
-    .catch(err => console.log("Erro no click:", err));
+    }).then(res => res.json()).catch(() => {});
 
     ultimoClique = agora;
     somClick();
+    vibrar();
     cliques += 1;
 
     const plus = document.createElement("div");
-    plus.innerText = "+1"; plus.className = "plus";
-    plus.style.left = Math.random() * 60 + 20 + "%";
-    plus.style.top = "30%";
+    plus.innerText = "+1";
+    plus.className = "plus-arena";
+    plus.style.left = Math.random() * 40 + 30 + "%";
+    plus.style.top = "5%";
     document.getElementById("clickArea").appendChild(plus);
     setTimeout(() => plus.remove(), 800);
 
@@ -792,20 +908,20 @@ function mostrarResultado() {
   jogadores.sort((a, b) => b.score - a.score);
 
   const posicao = jogadores.findIndex(j => j.nome === nomeJogador) + 1;
+  const venceu = posicao === 1;
   const titulo = document.getElementById("resultadoTitulo");
   const texto = document.getElementById("resultadoTexto");
   const ganhoEl = document.getElementById("resultadoGanho");
 
   titulo.classList.remove("vitoria", "derrota");
 
-  if (posicao === 1 && salaAtual) {
+  if (venceu && salaAtual) {
     const premio = parseFloat(calcularPremio(salaAtual));
     saldo += premio;
     atualizarSaldo();
 
     fetch(`${window.location.origin}/creditar-vitoria`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId: usuarioLogado.id, valor: premio })
     }).catch(() => {});
 
@@ -816,9 +932,21 @@ function mostrarResultado() {
     animarPremio(premio);
   } else {
     titulo.innerText = `${posicao}º LUGAR`;
-    texto.innerText = "Você quase chegou lá! Tente novamente.";
+    texto.innerText = "Boa tentativa! Tente novamente.";
     titulo.classList.add("derrota");
     if (ganhoEl) ganhoEl.classList.add("hidden");
+  }
+
+  // registra partida
+  if (usuarioLogado) {
+    fetch(`${window.location.origin}/registrar-partida`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: usuarioLogado.id, venceu, cliques })
+    }).catch(() => {});
+    perfil.partidas++;
+    if (venceu) perfil.vitorias++;
+    else perfil.derrotas++;
+    localStorage.setItem("perfil", JSON.stringify(perfil));
   }
 
   document.getElementById("resultado").classList.remove("hidden");
@@ -857,7 +985,7 @@ function soltarConfete() {
     particulas.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, r: Math.random()*6+2, d: Math.random()*5+2, color: `hsl(${Math.random()*360},100%,50%)` });
   }
   function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
     particulas.forEach(p => { ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fillStyle=p.color; ctx.fill(); });
     particulas.forEach(p => { p.y+=p.d; if(p.y>canvas.height){p.y=0;p.x=Math.random()*canvas.width;} });
   }
@@ -912,6 +1040,8 @@ function iniciarSalas(grupo) {
 function abrirWallet() {
   document.getElementById("wallet").classList.remove("hidden");
   document.getElementById("walletSaldo").innerText = "R$ " + saldo.toFixed(2);
+  const bonusEl = document.getElementById("walletBonus");
+  if (bonusEl) bonusEl.innerText = bonus > 0 ? `🎁 Bônus: R$ ${bonus.toFixed(2)}` : "";
 }
 
 function fecharWallet() { document.getElementById("wallet").classList.add("hidden"); }
@@ -934,7 +1064,7 @@ async function confirmarSaque() {
 
   if (!valor || valor <= 0) { msgEl.innerText = "Digite um valor válido"; msgEl.className = "saque-erro"; msgEl.classList.remove("hidden"); return; }
   if (!chave) { msgEl.innerText = "Digite sua chave PIX"; msgEl.className = "saque-erro"; msgEl.classList.remove("hidden"); return; }
-  if (valor > saldo) { msgEl.innerText = "Saldo insuficiente"; msgEl.className = "saque-erro"; msgEl.classList.remove("hidden"); return; }
+  if (valor > saldo) { msgEl.innerText = "Saldo insuficiente (bônus não pode ser sacado)"; msgEl.className = "saque-erro"; msgEl.classList.remove("hidden"); return; }
 
   try {
     const res = await fetch(`${window.location.origin}/sacar`, {
@@ -973,18 +1103,28 @@ async function confirmarDeposito() {
       <img src="data:image/png;base64,${data.qr_base64}" style="width:200px; margin-top:10px; border-radius:10px;">
       <button onclick="copiarPix('${data.qr_code}')" class="btn-copiar">📋 Copiar PIX</button>
       <div id="feedbackPix" class="hidden"></div>
+      <div id="pixStatus" style="margin-top:10px; color:#9ca3af; font-size:13px;">⏳ Aguardando pagamento...</div>
     `;
     const verificar = setInterval(async () => {
       try {
         const r = await fetch(`${window.location.origin}/saldo/${usuarioLogado.id}`);
         const d = await r.json();
         if (d.saldo > saldo) {
-          clearInterval(verificar); saldo = d.saldo; atualizarSaldo();
-          container.innerHTML = `<div class="pix-sucesso">✅ Depósito realizado com sucesso!</div>`;
-          setTimeout(() => fecharDeposito(), 2500);
+          clearInterval(verificar);
+          const diff = d.saldo - saldo;
+          saldo = d.saldo;
+          bonus = d.bonus || bonus;
+          atualizarSaldo();
+          container.innerHTML = `
+            <div class="pix-sucesso">
+              ✅ Depósito de R$ ${diff.toFixed(2)} realizado!<br>
+              <span style="font-size:13px; color:#86efac;">Saldo atualizado com sucesso</span>
+            </div>
+          `;
+          setTimeout(() => fecharDeposito(), 3000);
         }
       } catch(e) {}
-    }, 5000);
+    }, 4000);
     setTimeout(() => clearInterval(verificar), 600000);
   } catch (err) {
     container.innerHTML = "<p style='color:red'>Erro ao conectar com servidor</p>";
@@ -993,8 +1133,8 @@ async function confirmarDeposito() {
 
 function copiarPix(codigo) {
   navigator.clipboard.writeText(codigo)
-    .then(() => mostrarFeedback("✅ Pix copiado com sucesso"))
-    .catch(() => mostrarFeedback("❌ Erro ao copiar Pix"));
+    .then(() => mostrarFeedback("✅ Pix copiado"))
+    .catch(() => mostrarFeedback("❌ Erro ao copiar"));
 }
 
 function mostrarFeedback(msg) {
@@ -1012,7 +1152,9 @@ async function buscarSaldo() {
     const data = await res.json();
     const novoSaldo = data.saldo;
     if (novoSaldo > ultimoSaldo && ultimoSaldo > 0) animarDinheiro(novoSaldo - ultimoSaldo);
-    ultimoSaldo = novoSaldo; saldo = novoSaldo;
+    ultimoSaldo = novoSaldo;
+    saldo = novoSaldo;
+    bonus = data.bonus || 0;
     const el = document.getElementById("saldo");
     if (el) el.innerText = "R$ " + novoSaldo.toFixed(2);
   } catch (err) {}
@@ -1042,16 +1184,170 @@ async function verHistorico() {
     area.innerHTML = "<p style='text-align:center;'>Nenhuma transação ainda</p>";
   } else {
     area.innerHTML = dados.map(item => `
-      <div style="background:#111; padding:10px; margin-bottom:10px; border-radius:8px;">
-        <strong>${item.tipo}</strong><br>
-        R$ ${Number(item.valor).toFixed(2)}<br>
-        <small>${new Date(item.data).toLocaleString()}</small>
+      <div style="background:#111; padding:10px; margin-bottom:8px; border-radius:8px;">
+        <strong>${item.tipo}</strong> — R$ ${Number(item.valor).toFixed(2)}<br>
+        <small style="color:#6b7280">${new Date(item.data).toLocaleString()}</small>
       </div>
     `).join("");
   }
   area.classList.remove("hidden");
 }
 
+// =============================
+// 🔗 CONVITE DE AMIGOS
+// =============================
+
+async function abrirConvite() {
+  if (!usuarioLogado) return;
+
+  abrirTela(`
+    <div class="tela-box">
+      <div class="tela-header"><span class="btn-voltar" onclick="fecharTela()">←</span><h2>🔗 Convidar Amigos</h2></div>
+      <div class="tela-content" style="text-align:center;">
+        <div style="font-size:48px; margin-bottom:15px;">🎁</div>
+        <p style="color:#e5e7eb; margin-bottom:5px;">Convide amigos e eles ganham</p>
+        <h2 style="color:#22c55e; margin:5px 0;">R$ 10,00 de bônus</h2>
+        <p style="color:#9ca3af; font-size:13px; margin-bottom:25px;">O bônus pode ser usado para jogar mas não pode ser sacado diretamente.</p>
+        <div id="conviteContainer">
+          <button class="btn-primary" onclick="gerarLinkConvite()">Gerar meu link de convite</button>
+        </div>
+      </div>
+    </div>
+  `);
+}
+
+async function gerarLinkConvite() {
+  const container = document.getElementById("conviteContainer");
+  container.innerHTML = "<p>⏳ Gerando...</p>";
+  try {
+    const res = await fetch(`${window.location.origin}/criar-convite`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: usuarioLogado.id, nomeUsuario: usuarioLogado.nome })
+    });
+    const data = await res.json();
+    if (!res.ok) { container.innerHTML = "<p style='color:red'>Erro ao gerar link</p>"; return; }
+    container.innerHTML = `
+      <div style="background:#111827; padding:15px; border-radius:12px; margin-bottom:15px;">
+        <p style="color:#9ca3af; font-size:12px; margin-bottom:8px;">Seu link de convite:</p>
+        <p style="color:#22c55e; font-size:14px; word-break:break-all;">${data.link}</p>
+      </div>
+      <button class="btn-primary" onclick="navigator.clipboard.writeText('${data.link}').then(() => alert('Link copiado!'))">
+        📋 Copiar link
+      </button>
+      <p style="color:#6b7280; font-size:12px; margin-top:15px;">Você pode convidar quantos amigos quiser!</p>
+    `;
+  } catch(e) {
+    container.innerHTML = "<p style='color:red'>Erro ao conectar</p>";
+  }
+}
+
+// =============================
+// 🏟️ SALAS DE USUÁRIOS
+// =============================
+
+async function abrirSalasUsuarios() {
+  abrirTela(`
+    <div class="tela-box">
+      <div class="tela-header"><span class="btn-voltar" onclick="fecharTela()">←</span><h2>🏟️ Salas de Jogadores</h2></div>
+      <div class="tela-content">
+        <button class="btn-primary" style="margin-bottom:20px" onclick="abrirCriarSala()">+ Criar minha sala</button>
+        <div id="listaSalasUsuarios"><p style="text-align:center; color:#6b7280;">Carregando...</p></div>
+      </div>
+    </div>
+  `);
+  carregarSalasUsuarios();
+}
+
+async function carregarSalasUsuarios() {
+  const div = document.getElementById("listaSalasUsuarios");
+  if (!div) return;
+  try {
+    const res = await fetch(`${window.location.origin}/salas-usuarios`);
+    const salas = await res.json();
+    if (!salas.length) { div.innerHTML = "<p style='text-align:center; color:#6b7280;'>Nenhuma sala ativa no momento</p>"; return; }
+    div.innerHTML = salas.map(s => {
+      const premio = ((s.premio_acumulado || 0) * 0.7).toFixed(2);
+      const expira = new Date(s.expires_at).toLocaleString("pt-BR");
+      return `
+        <div class="sala">
+          <div class="sala-left">
+            <b>${s.nome}</b>
+            <span style="color:#3b82f6; font-size:11px;">👤 Sala de jogador</span>
+            <span>${s.jogadores}/${s.max_jogadores} jogadores</span>
+            <span style="font-size:11px; color:#6b7280;">Expira: ${expira}</span>
+          </div>
+          <div class="sala-right">
+            <div class="sala-premio">🏆 R$ ${premio}</div>
+            <div class="sala-entrada">Entrada: R$ ${s.valor_entrada}</div>
+            <div class="green">Código: ${s.codigo}</div>
+          </div>
+        </div>
+      `;
+    }).join("");
+  } catch(e) {
+    div.innerHTML = "<p style='color:red'>Erro ao carregar salas</p>";
+  }
+}
+
+function abrirCriarSala() {
+  abrirTela(`
+    <div class="tela-box">
+      <div class="tela-header"><span class="btn-voltar" onclick="abrirSalasUsuarios()">←</span><h2>Criar Sala</h2></div>
+      <div class="tela-content" style="max-width:400px; margin:auto;">
+        <p style="color:#9ca3af; margin-bottom:20px;">Crie uma sala privada. Ela ficará ativa por 24h.</p>
+        <label style="color:#e5e7eb; font-size:14px;">Valor de entrada (mín. R$ 1)</label>
+        <input id="valorCriarSala" type="number" min="1" placeholder="Ex: 5" class="auth-input" style="margin-top:8px; margin-bottom:20px;" />
+        <div id="criarSalaMsg" class="hidden"></div>
+        <button class="btn-primary" onclick="confirmarCriarSala()">🏟️ Criar sala</button>
+        <p style="color:#6b7280; font-size:12px; margin-top:15px; text-align:center;">
+          O vencedor recebe 70% do prêmio total.<br>Você entra automaticamente como 1º jogador.
+        </p>
+      </div>
+    </div>
+  `);
+}
+
+async function confirmarCriarSala() {
+  const valor = Number(document.getElementById("valorCriarSala").value);
+  const msgEl = document.getElementById("criarSalaMsg");
+  msgEl.classList.add("hidden");
+
+  if (!valor || valor < 1) {
+    msgEl.innerText = "Valor mínimo é R$ 1";
+    msgEl.style.color = "#ef4444";
+    msgEl.classList.remove("hidden");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${window.location.origin}/criar-sala`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: usuarioLogado.id, nomeUsuario: usuarioLogado.nome, valorEntrada: valor })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      msgEl.innerText = data.erro || "Erro ao criar sala";
+      msgEl.style.color = "#ef4444";
+      msgEl.classList.remove("hidden");
+      return;
+    }
+
+    saldo -= valor;
+    atualizarSaldo();
+
+    msgEl.innerHTML = `
+      ✅ Sala criada!<br>
+      <strong>Código: ${data.sala.codigo}</strong><br>
+      Compartilhe com seus amigos!
+    `;
+    msgEl.style.color = "#22c55e";
+    msgEl.classList.remove("hidden");
+  } catch(e) {
+    msgEl.innerText = "Erro ao conectar";
+    msgEl.style.color = "#ef4444";
+    msgEl.classList.remove("hidden");
+  }
+}
 
 // =============================
 // 👤 PERFIL
@@ -1061,7 +1357,11 @@ function salvarPerfil() { localStorage.setItem("perfil", JSON.stringify(perfil))
 function gerarAvatar(nome) { return nome ? nome.charAt(0).toUpperCase() : "?"; }
 
 function abrirPerfil() {
-  const aproveitamento = perfil.partidas > 0 ? Math.round((perfil.vitorias / perfil.partidas) * 100) : 0;
+  const total = perfil.partidas || 0;
+  const vitorias = perfil.vitorias || 0;
+  const derrotas = perfil.derrotas || 0;
+  const aproveitamento = total > 0 ? Math.round((vitorias / total) * 100) : 0;
+
   const foto = usuarioLogado && usuarioLogado.foto_url
     ? `<img src="${usuarioLogado.foto_url}" class="perfil-foto-img" onclick="trocarFotoPerfil()" />`
     : `<div class="perfil-avatar" onclick="trocarFotoPerfil()">${gerarAvatar(perfil.nome)}</div>`;
@@ -1076,10 +1376,11 @@ function abrirPerfil() {
         <input id="nomePerfil" value="${perfil.nome}" class="input-nome" />
         <p style="color:#6b7280; font-size:13px;">ID: ${perfil.id}</p>
       </div>
-      <div class="perfil-saldo"><span>Saldo atual</span><h1>R$ ${saldo.toFixed(2)}</h1></div>
+      <div class="perfil-saldo"><span>Saldo</span><h1>R$ ${saldo.toFixed(2)}</h1>${bonus > 0 ? `<p style="color:#f59e0b; font-size:13px; margin:5px 0 0;">🎁 Bônus: R$ ${bonus.toFixed(2)}</p>` : ""}</div>
       <div class="perfil-stats">
-        <div class="stat"><strong>${perfil.partidas}</strong><span>Partidas</span></div>
-        <div class="stat"><strong>${perfil.vitorias}</strong><span>Vitórias</span></div>
+        <div class="stat"><strong>${total}</strong><span>Partidas</span></div>
+        <div class="stat"><strong>${vitorias}</strong><span>Vitórias</span></div>
+        <div class="stat"><strong>${derrotas}</strong><span>Derrotas</span></div>
         <div class="stat"><strong>${aproveitamento}%</strong><span>Aproveit.</span></div>
       </div>
       <div class="perfil-actions">
@@ -1103,7 +1404,11 @@ async function atualizarFotoPerfil(event) {
         body: JSON.stringify({ userId: usuarioLogado.id, foto_base64: e.target.result })
       });
       const data = await res.json();
-      if (data.ok) { usuarioLogado.foto_url = data.foto_url; localStorage.setItem("usuario", JSON.stringify(usuarioLogado)); abrirPerfil(); }
+      if (data.ok) {
+        usuarioLogado.foto_url = data.foto_url;
+        localStorage.setItem("usuario", JSON.stringify(usuarioLogado));
+        abrirPerfil();
+      }
     } catch(e) {}
   };
   reader.readAsDataURL(file);
