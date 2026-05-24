@@ -1429,7 +1429,618 @@ function abrirDiretrizes() {
   abrirTela(`
     <div class="tela-box">
       <div class="tela-header"><span class="btn-voltar" onclick="fecharTela()">←</span><h2>Diretrizes</h2></div>
-      <div class="tela-content"><p>Use o jogo de forma justa. Bots e trapaças resultam em banimento permanente.</p></div>
+      <div class="tela-content"><p>DIRETRIZES OFICIAIS — CLICK ARENA
+
+1. SOBRE O CLICK ARENA
+
+O Click Arena é uma plataforma de competição online baseada em habilidade, velocidade e desempenho em tempo real.
+
+Os jogadores participam de partidas rápidas onde o objetivo é simples:
+
+clicar mais rápido;
+
+superar os outros participantes;
+
+alcançar a maior pontuação dentro do tempo da partida.
+
+
+O vencedor da partida é definido exclusivamente pelo desempenho obtido durante o tempo da competição.
+
+O Click Arena NÃO é uma plataforma de apostas.
+
+No Click Arena:
+
+não existe sorteio;
+
+não existe cassino;
+
+não existe roleta;
+
+não existe jogo de azar;
+
+não existe multiplicador aleatório;
+
+não existe resultado manipulado;
+
+o resultado depende exclusivamente da habilidade, velocidade e desempenho do jogador.
+
+
+
+---
+
+2. COMO FUNCIONAM AS PARTIDAS
+
+Estrutura das partidas
+
+As partidas acontecem em tempo real e possuem duração definida.
+
+Atualmente:
+
+cada partida possui duração de 30 segundos;
+
+os jogadores competem simultaneamente;
+
+vence quem realizar a maior quantidade de cliques válidos.
+
+
+
+---
+
+Entrada nas partidas
+
+Para participar:
+
+1. o jogador entra na plataforma;
+
+
+2. acessa a sala disponível;
+
+
+3. aguarda o início da partida;
+
+
+4. participa da competição;
+
+
+5. o sistema contabiliza automaticamente os cliques válidos.
+
+
+
+
+---
+
+Resultado da partida
+
+Ao final da partida:
+
+o sistema calcula automaticamente o total de cliques válidos;
+
+o ranking da partida é definido;
+
+o vencedor recebe o prêmio correspondente;
+
+os demais jogadores podem visualizar o resultado final.
+
+
+
+---
+
+3. CLIQUES VÁLIDOS
+
+Para manter a integridade da competição:
+
+apenas cliques humanos são considerados válidos;
+
+o sistema possui mecanismos automáticos de detecção de padrões suspeitos;
+
+cliques automatizados podem ser desconsiderados;
+
+contas suspeitas podem sofrer análise manual.
+
+
+O sistema poderá:
+
+invalidar partidas;
+
+remover pontuações;
+
+suspender usuários;
+
+bloquear contas;
+
+cancelar recompensas;
+
+limitar acesso temporariamente.
+
+
+
+---
+
+4. SISTEMA ANTIBOT E ANTIFRAUDE
+
+O Click Arena possui mecanismos de proteção contra:
+
+bots;
+
+scripts automáticos;
+
+autoclick;
+
+automações;
+
+manipulação de partidas;
+
+exploração de falhas;
+
+uso indevido da plataforma.
+
+
+O sistema pode identificar:
+
+padrões robóticos;
+
+velocidade irreal de cliques;
+
+comportamento repetitivo;
+
+manipulação automatizada;
+
+atividades suspeitas.
+
+
+
+---
+
+Proibições
+
+É proibido:
+
+utilizar autoclick;
+
+utilizar scripts;
+
+utilizar programas automatizados;
+
+utilizar extensões manipuladoras;
+
+modificar o funcionamento da plataforma;
+
+explorar bugs;
+
+manipular resultados;
+
+tentar prejudicar outros jogadores.
+
+
+
+---
+
+Consequências
+
+Usuários que violarem as regras poderão sofrer:
+
+advertência;
+
+suspensão temporária;
+
+bloqueio permanente;
+
+perda de saldo;
+
+cancelamento de recompensas;
+
+remoção do ranking;
+
+encerramento definitivo da conta.
+
+
+
+---
+
+5. TAXA ADMINISTRATIVA DA PLATAFORMA
+
+O Click Arena realiza a cobrança de uma taxa administrativa sobre cada partida.
+
+Essa taxa é utilizada para:
+
+manutenção da plataforma;
+
+servidores;
+
+processamento de pagamentos;
+
+desenvolvimento;
+
+segurança;
+
+sistemas antifraude;
+
+suporte;
+
+melhorias contínuas.
+
+
+
+---
+
+Como funciona a taxa
+
+Parte do valor arrecadado em cada partida é destinada:
+
+ao prêmio da competição;
+
+à administração e operação da plataforma.
+
+
+O percentual administrativo poderá variar conforme:
+
+tipo da sala;
+
+evento;
+
+promoção;
+
+modalidade;
+
+campanhas específicas.
+
+
+Todas as informações relevantes serão apresentadas antes da participação do jogador.
+
+
+---
+
+6. DEPÓSITOS
+
+Os depósitos realizados na plataforma possuem o objetivo de permitir participação nas competições disponíveis.
+
+
+---
+
+Regras dos depósitos
+
+os depósitos devem ser realizados exclusivamente pelos meios oficiais da plataforma;
+
+o saldo poderá levar alguns instantes para ser atualizado;
+
+pagamentos suspeitos poderão passar por análise;
+
+depósitos fraudulentos serão bloqueados.
+
+
+
+---
+
+PIX
+
+Os pagamentos via PIX podem:
+
+depender da instituição financeira do usuário;
+
+sofrer instabilidade externa;
+
+passar por confirmação bancária.
+
+
+O Click Arena não possui controle sobre instabilidades de bancos ou instituições financeiras.
+
+
+---
+
+7. SAQUES
+
+O jogador poderá solicitar saque do saldo disponível conforme as regras vigentes da plataforma.
+
+
+---
+
+Regras de saque
+
+o saque poderá passar por análise de segurança;
+
+atividades suspeitas podem gerar retenção temporária;
+
+contas em análise poderão ter saques pausados;
+
+o prazo pode variar conforme demanda operacional.
+
+
+
+---
+
+Verificação de segurança
+
+A plataforma poderá solicitar:
+
+confirmação de identidade;
+
+validação de informações;
+
+verificação de atividade.
+
+
+Essas medidas existem para:
+
+evitar fraudes;
+
+proteger jogadores;
+
+impedir lavagem de dinheiro;
+
+garantir segurança operacional.
+
+
+
+---
+
+8. CONDUTA DOS JOGADORES
+
+Todos os usuários devem manter comportamento respeitoso.
+
+
+---
+
+É proibido
+
+discurso de ódio;
+
+ameaças;
+
+racismo;
+
+preconceito;
+
+assédio;
+
+conteúdo ofensivo;
+
+spam;
+
+tentativa de golpe;
+
+divulgação indevida;
+
+comportamento abusivo.
+
+
+
+---
+
+Respeito à comunidade
+
+O Click Arena busca construir:
+
+um ambiente competitivo;
+
+uma comunidade saudável;
+
+respeito entre jogadores;
+
+competição justa.
+
+
+
+---
+
+9. RANKINGS
+
+Os rankings possuem objetivo competitivo e informativo.
+
+Eles podem considerar:
+
+vitórias;
+
+quantidade de cliques;
+
+desempenho;
+
+consistência;
+
+eventos especiais.
+
+
+A plataforma poderá:
+
+redefinir rankings;
+
+atualizar pontuações;
+
+remover usuários fraudulentos;
+
+criar temporadas;
+
+realizar eventos especiais.
+
+
+
+---
+
+10. DISPONIBILIDADE DA PLATAFORMA
+
+O Click Arena trabalha continuamente para manter estabilidade.
+
+Mesmo assim, podem ocorrer:
+
+manutenção;
+
+instabilidade;
+
+atualização;
+
+interrupção temporária;
+
+falhas externas;
+
+problemas de conexão.
+
+
+A plataforma não garante funcionamento ininterrupto 24 horas por dia.
+
+
+---
+
+11. RESPONSABILIDADE DO USUÁRIO
+
+O jogador é responsável por:
+
+manter seus dados seguros;
+
+proteger sua conta;
+
+não compartilhar acessos;
+
+utilizar dispositivos confiáveis;
+
+respeitar as regras da plataforma.
+
+
+
+---
+
+12. SEGURANÇA DA CONTA
+
+Recomendações importantes:
+
+utilize senha forte;
+
+não compartilhe dados;
+
+não utilize aplicativos suspeitos;
+
+não informe códigos a terceiros.
+
+
+O Click Arena nunca solicitará senha completa do usuário fora dos canais oficiais.
+
+
+---
+
+13. ALTERAÇÕES NAS DIRETRIZES
+
+O Click Arena poderá atualizar:
+
+funcionalidades;
+
+políticas;
+
+regras;
+
+diretrizes;
+
+sistemas;
+
+taxas;
+
+modalidades.
+
+
+As alterações poderão ocorrer visando:
+
+segurança;
+
+evolução da plataforma;
+
+melhorias operacionais;
+
+experiência dos jogadores.
+
+
+
+---
+
+14. USO JUSTO DA PLATAFORMA
+
+Todos os jogadores devem competir de maneira honesta.
+
+O objetivo do Click Arena é proporcionar:
+
+diversão;
+
+competição saudável;
+
+experiência justa;
+
+desafios rápidos;
+
+ambiente competitivo.
+
+
+
+---
+
+15. SOBRE A NATUREZA DA PLATAFORMA
+
+O Click Arena é uma plataforma baseada em:
+
+habilidade;
+
+velocidade;
+
+reação;
+
+desempenho competitivo.
+
+
+O resultado das partidas depende da atuação individual de cada participante.
+
+
+---
+
+16. ACEITAÇÃO DOS TERMOS
+
+Ao utilizar o Click Arena, o usuário declara estar ciente e de acordo com:
+
+as diretrizes da plataforma;
+
+as regras de competição;
+
+os sistemas de segurança;
+
+os critérios operacionais;
+
+as políticas da comunidade.
+
+
+
+---
+
+17. SUPORTE
+
+Em caso de dúvidas, problemas ou necessidade de suporte:
+
+utilize os canais oficiais da plataforma;
+
+descreva claramente a situação;
+
+informe detalhes relevantes;
+
+aguarde análise da equipe.
+
+
+
+---
+
+18. OBJETIVO DO CLICK ARENA
+
+O objetivo do Click Arena é criar:
+
+uma experiência competitiva acessível;
+
+partidas rápidas;
+
+desafios baseados em habilidade;
+
+uma comunidade ativa;
+
+uma plataforma moderna de competição em tempo real.
+
+---
+
+CLICK ARENA
+
+Competição. Velocidade. Comunidade.
+
+O mais rápido vence.</p></div>
     </div>
   `);
 }
