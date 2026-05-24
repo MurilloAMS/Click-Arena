@@ -6,8 +6,6 @@
   <title>Click Arena — Ganhe dinheiro clicando</title>
   <meta name="description" content="Compete em partidas de cliques e ganhe dinheiro real! Deposite via PIX, entre em uma sala e vença outros jogadores clicando mais rápido.">
   <meta name="keywords" content="ganhe dinheiro clicando, jogo de cliques, click arena, ganhar dinheiro online, pix, partidas online">
-  <meta name="author" content="Click Arena">
-  <meta name="robots" content="index, follow">
   <meta name="theme-color" content="#0B0F1A">
   <meta property="og:title" content="Click Arena — Ganhe dinheiro clicando" />
   <meta property="og:description" content="Compete em partidas de cliques e ganhe dinheiro real via PIX!" />
@@ -96,7 +94,7 @@
     <div class="saldo" id="saldo" onclick="abrirWallet()">R$ 0.00</div>
   </div>
 
-  <!-- TIMER + BOTÕES -->
+  <!-- TIMER -->
   <div class="timer-wrapper">
     <div class="timer-box">
       <div class="timer-glow"></div>
@@ -107,8 +105,8 @@
       </div>
     </div>
     <div class="timer-botoes">
-      <button class="timer-btn" onclick="abrirChat()" title="Chat Global">💬</button>
-      <button class="timer-btn" onclick="abrirTreino()" title="Arena de Treino">🏋️</button>
+      <button class="timer-btn" onclick="abrirChat()" title="Chat">💬</button>
+      <button class="timer-btn" onclick="abrirTreino()" title="Treino">🏋️</button>
       <button class="timer-btn" id="btnSom" onclick="toggleSom()" title="Som">🔊</button>
     </div>
   </div>
@@ -121,10 +119,8 @@
   <!-- SALAS -->
   <div class="salas" id="salas"></div>
 
-  <!-- ARENA DE COMBATE -->
+  <!-- ARENA -->
   <div id="arena" class="arena hidden">
-
-    <!-- OVERLAY DE ESPERA -->
     <div id="arenaEspera" class="arena-espera hidden">
       <div class="espera-box">
         <div class="espera-emoji">⚡</div>
@@ -136,7 +132,6 @@
         <div class="espera-pulso"></div>
       </div>
     </div>
-
     <div class="arena-topo">⚔️ Click Arena</div>
     <div class="arena-layout">
       <div class="arena-ranking" id="arenaRanking"></div>
@@ -148,7 +143,7 @@
     <div class="arena-timer" id="arenaTimer">30s</div>
   </div>
 
-  <!-- ARENA DE TREINO -->
+  <!-- TREINO -->
   <div id="arenaTreino" class="arena hidden">
     <div class="arena-topo">🏋️ Treino</div>
     <div class="arena-layout">
@@ -185,7 +180,7 @@
     </div>
   </div>
 
-  <!-- CHAT GLOBAL -->
+  <!-- CHAT -->
   <div id="chatGlobal" class="chat-overlay hidden">
     <div class="chat-box">
       <div class="chat-header">
@@ -207,15 +202,29 @@
         <h2>Carteira</h2>
         <span onclick="fecharWallet()">✕</span>
       </div>
+
+      <!-- SALDO -->
       <div class="wallet-balance">
         <span>Saldo disponível</span>
         <h1 id="walletSaldo">R$ 0.00</h1>
         <div id="walletBonus" style="color:#f59e0b; font-size:13px; margin-top:4px;"></div>
       </div>
+
+      <!-- MODO SALDO -->
+      <div class="wallet-modo">
+        <button id="btnModoReal" class="btn-modo ativo" onclick="selecionarModo('real')">
+          💵 Saldo real
+        </button>
+        <button id="btnModoBonus" class="btn-modo" onclick="selecionarModo('bonus')" style="display:none">
+          🎁 Usar bônus
+        </button>
+      </div>
+
       <div class="wallet-actions">
         <button onclick="depositar()" class="btn-depositar">Depositar</button>
         <button onclick="sacar()" class="btn-sacar">Sacar</button>
       </div>
+
       <div id="modalDeposito" class="hidden">
         <div class="deposito-box">
           <h3>💰 Depositar via PIX</h3>
@@ -225,10 +234,11 @@
           <div id="pixContainer"></div>
         </div>
       </div>
+
       <div id="modalSaque" class="hidden">
         <div class="deposito-box">
           <h3>💸 Solicitar Saque</h3>
-          <p style="color:#9ca3af; font-size:12px; margin:0 0 10px;">Apenas saldo real pode ser sacado, não o bônus.</p>
+          <p style="color:#9ca3af; font-size:12px; margin:0 0 10px;">Apenas saldo real pode ser sacado.</p>
           <input id="inputSaqueValor" type="number" placeholder="Valor do saque" />
           <input id="inputSaqueChave" type="text" placeholder="Sua chave PIX" />
           <button onclick="confirmarSaque()">Solicitar</button>
@@ -236,8 +246,10 @@
           <div id="saqueMsg" class="hidden"></div>
         </div>
       </div>
-      <button onclick="verHistorico()" class="btn-historico">📊 Histórico de transações</button>
+
+      <button onclick="verHistorico()" class="btn-historico">📊 Histórico</button>
       <div id="historicoArea" class="hidden"></div>
+
       <div class="wallet-card">
         <span>Conta vinculada</span>
         <p>•••• •••• •••• 4589</p>

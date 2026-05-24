@@ -20,16 +20,11 @@ const payment = new Payment(client);
 let jogadores = {};
 
 // =============================
-// ⏱️ TIMER GLOBAL SINCRONIZADO
+// ⏱️ TIMER SINCRONIZADO
 // =============================
-// Usa timestamp real para que ao recarregar a página o timer continue de onde estava
-function getTempoGlobalAtual() {
-  const agora = Math.floor(Date.now() / 1000);
-  return 30 - (agora % 30);
-}
-
 app.get("/tempo-global", (req, res) => {
-  res.json({ tempo: getTempoGlobalAtual(), timestamp: Date.now() });
+  const tempo = 30 - (Math.floor(Date.now() / 1000) % 30);
+  res.json({ tempo, timestamp: Date.now() });
 });
 
 // =============================
@@ -45,7 +40,7 @@ async function enviarEmailSaque(usuario, valor, chave_pix) {
   await transporter.sendMail({
     from: `"Click Arena" <${process.env.EMAIL_USER}>`,
     to: process.env.EMAIL_USER,
-    subject: `💸 Novo Pedido de Saque — R$ ${Number(valor).toFixed(2)}`,
+    subject: `💸 Saque — R$ ${Number(valor).toFixed(2)}`,
     html: `
       <div style="font-family:Arial; max-width:500px; margin:auto; background:#0f172a; color:white; padding:30px; border-radius:12px;">
         <h2 style="color:#22c55e;">💸 Pedido de Saque</h2>
@@ -56,6 +51,23 @@ async function enviarEmailSaque(usuario, valor, chave_pix) {
           <tr><td style="padding:8px 0; color:#9ca3af;">Chave PIX</td><td style="padding:8px 0; font-weight:bold;">${chave_pix}</td></tr>
           <tr><td style="padding:8px 0; color:#9ca3af;">Data/Hora</td><td style="padding:8px 0;">${agora}</td></tr>
         </table>
+      </div>
+    `
+  });
+}
+
+async function enviarEmailReclamacao(nomeUsuario, emailUsuario, mensagem) {
+  await transporter.sendMail({
+    from: `"Click Arena" <${process.env.EMAIL_USER}>`,
+    to: "reclameaqui.click@gmail.com",
+    subject: `🚨 Nova Reclamação — ${nomeUsuario}`,
+    html: `
+      <div style="font-family:Arial; max-width:500px; margin:auto; background:#0f172a; color:white; padding:30px; border-radius:12px;">
+        <h2 style="color:#ef4444;">🚨 Nova Reclamação</h2>
+        <p><strong>Usuário:</strong> ${nomeUsuario}</p>
+        <p><strong>E-mail:</strong> ${emailUsuario}</p>
+        <p><strong>Mensagem:</strong></p>
+        <p style="background:#1f2937; padding:15px; border-radius:8px;">${mensagem}</p>
       </div>
     `
   });
@@ -82,26 +94,30 @@ app.post("/cadastro", async (req, res) => {
     }
   }
 
-  // verifica convite
+  // ✅ bônus vai para quem GEROU o link (quem convidou), não para quem entrou
   let indicado_por = null;
-  let bonus = 0;
   if (codigo_convite) {
     const { data: convite } = await supabase.from("convites").select("*").eq("codigo", codigo_convite).single();
     if (convite) {
       indicado_por = convite.user_id;
-      bonus = 10; // R$ 10 de bônus, não sacável
       await supabase.from("convites").update({ usos: (convite.usos || 0) + 1 }).eq("id", convite.id);
+
+      // dá bônus de R$10 para quem convidou
+      const { data: convidador } = await supabase.from("usuarios").select("bonus").eq("id", convite.user_id).single();
+      if (convidador) {
+        await supabase.from("usuarios").update({ bonus: (convidador.bonus || 0) + 10 }).eq("id", convite.user_id);
+      }
     }
   }
 
   const { data: novoUser, error } = await supabase
     .from("usuarios")
-    .insert([{ nome, email, senha, foto_url, saldo: 0, bonus, partidas: 0, vitorias: 0, derrotas: 0, indicado_por }])
+    .insert([{ nome, email, senha, foto_url, saldo: 0, bonus: 0, partidas: 0, vitorias: 0, derrotas: 0, indicado_por }])
     .select().single();
 
   if (error) return res.status(500).json({ erro: error.message });
 
-  res.json({ ok: true, usuario: { id: novoUser.id, nome: novoUser.nome, email: novoUser.email, foto_url: novoUser.foto_url, saldo: novoUser.saldo, bonus: novoUser.bonus, partidas: novoUser.partidas, vitorias: novoUser.vitorias, derrotas: novoUser.derrotas } });
+  res.json({ ok: true, usuario: { id: novoUser.id, nome: novoUser.nome, email: novoUser.email, foto_url: novoUser.foto_url, saldo: novoUser.saldo, bonus: novoUser.bonus || 0, partidas: novoUser.partidas, vitorias: novoUser.vitorias, derrotas: novoUser.derrotas || 0 } });
 });
 
 // =============================
@@ -118,7 +134,7 @@ app.post("/login", async (req, res) => {
 });
 
 // =============================
-// 🏆 CREDITAR VITÓRIA
+// 🏆 CREDITAR VITÓRIA — sem duplicatas
 // =============================
 app.post("/creditar-vitoria", async (req, res) => {
   const { userId, valor } = req.body;
@@ -134,7 +150,7 @@ app.post("/creditar-vitoria", async (req, res) => {
 
   await supabase.from("historico").insert([{ user_id: userId, tipo: "Vitória", valor }]);
 
-  // atualiza ranking diário
+  // ✅ UPSERT no ranking — nunca cria duplicata
   const hoje = new Date().toISOString().split("T")[0];
   const { data: rankExiste } = await supabase.from("ranking_diario").select("*").eq("user_id", userId).eq("dia", hoje).single();
 
@@ -152,31 +168,48 @@ app.post("/creditar-vitoria", async (req, res) => {
 });
 
 // =============================
-// 📊 REGISTRAR PARTIDA (derrota)
+// 📊 REGISTRAR PARTIDA
 // =============================
 app.post("/registrar-partida", async (req, res) => {
   const { userId, venceu, cliques } = req.body;
 
-  const { data: usuario } = await supabase.from("usuarios").select("partidas, derrotas, vitorias").eq("id", userId).single();
+  const { data: usuario } = await supabase.from("usuarios").select("partidas, derrotas").eq("id", userId).single();
   if (!usuario) return res.status(404).json({ erro: "Não encontrado" });
 
   const update = { partidas: (usuario.partidas || 0) + 1 };
   if (!venceu) update.derrotas = (usuario.derrotas || 0) + 1;
-
   await supabase.from("usuarios").update(update).eq("id", userId);
 
-  // atualiza cliques no ranking diário
+  // ✅ atualiza cliques no ranking — nunca duplica
   const hoje = new Date().toISOString().split("T")[0];
   const { data: rankExiste } = await supabase.from("ranking_diario").select("*").eq("user_id", userId).eq("dia", hoje).single();
 
   if (rankExiste) {
-    await supabase.from("ranking_diario").update({ cliques: (rankExiste.cliques || 0) + cliques }).eq("id", rankExiste.id);
+    await supabase.from("ranking_diario").update({
+      cliques: (rankExiste.cliques || 0) + cliques
+    }).eq("id", rankExiste.id);
   } else {
     const { data: u } = await supabase.from("usuarios").select("nome, foto_url").eq("id", userId).single();
     await supabase.from("ranking_diario").insert([{ user_id: userId, nome: u.nome, foto_url: u.foto_url, vitorias: 0, cliques, ganho: 0, dia: hoje }]);
   }
 
   res.json({ ok: true });
+});
+
+// =============================
+// 🚨 RECLAMAÇÕES
+// =============================
+app.post("/reclamacao", async (req, res) => {
+  const { userId, nomeUsuario, emailUsuario, mensagem } = req.body;
+  if (!mensagem || !mensagem.trim()) return res.status(400).json({ erro: "Mensagem vazia" });
+
+  try {
+    await enviarEmailReclamacao(nomeUsuario, emailUsuario, mensagem);
+    res.json({ ok: true });
+  } catch(e) {
+    console.log("Erro email reclamação:", e.message);
+    res.status(500).json({ erro: "Erro ao enviar reclamação" });
+  }
 });
 
 // =============================
@@ -202,7 +235,7 @@ app.post("/chat", async (req, res) => {
 });
 
 // =============================
-// 🏋️ RECORDES DE TREINO
+// 🏋️ RECORDES TREINO
 // =============================
 app.post("/recorde-treino", async (req, res) => {
   const { userId, cliques } = req.body;
@@ -211,12 +244,7 @@ app.post("/recorde-treino", async (req, res) => {
 });
 
 app.get("/recordes-treino/:userId", async (req, res) => {
-  const { data } = await supabase
-    .from("recordes_treino")
-    .select("*")
-    .eq("user_id", req.params.userId)
-    .order("cliques", { ascending: false })
-    .limit(3);
+  const { data } = await supabase.from("recordes_treino").select("*").eq("user_id", req.params.userId).order("cliques", { ascending: false }).limit(3);
   res.json(data || []);
 });
 
@@ -225,24 +253,14 @@ app.get("/recordes-treino/:userId", async (req, res) => {
 // =============================
 app.post("/criar-convite", async (req, res) => {
   const { userId, nomeUsuario } = req.body;
-
-  // verifica se já tem convite
   const { data: existente } = await supabase.from("convites").select("*").eq("user_id", userId).single();
   if (existente) return res.json({ ok: true, codigo: existente.codigo, link: `${process.env.APP_URL}/?convite=${existente.codigo}` });
 
-  // gera código baseado no nome
   const codigo = nomeUsuario.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") + "-" + Math.random().toString(36).substr(2, 4);
-
   const { data: novoConvite, error } = await supabase.from("convites").insert([{ user_id: userId, codigo }]).select().single();
   if (error) return res.status(500).json({ erro: error.message });
 
   res.json({ ok: true, codigo: novoConvite.codigo, link: `${process.env.APP_URL}/?convite=${novoConvite.codigo}` });
-});
-
-app.get("/convite/:codigo", async (req, res) => {
-  const { data } = await supabase.from("convites").select("*, usuarios(nome)").eq("codigo", req.params.codigo).single();
-  if (!data) return res.status(404).json({ erro: "Convite inválido" });
-  res.json({ ok: true, nomeConvidador: data.usuarios?.nome, usos: data.usos });
 });
 
 // =============================
@@ -250,26 +268,18 @@ app.get("/convite/:codigo", async (req, res) => {
 // =============================
 app.post("/criar-sala", async (req, res) => {
   const { userId, nomeUsuario, valorEntrada } = req.body;
-
   if (!valorEntrada || valorEntrada < 1) return res.status(400).json({ erro: "Valor mínimo é R$ 1" });
 
-  // verifica saldo
   const { data: usuario } = await supabase.from("usuarios").select("saldo, bonus").eq("id", userId).single();
   if (!usuario) return res.status(404).json({ erro: "Usuário não encontrado" });
 
   const saldoTotal = (usuario.saldo || 0) + (usuario.bonus || 0);
   if (saldoTotal < valorEntrada) return res.status(400).json({ erro: "Saldo insuficiente para criar a sala" });
 
-  // desconta saldo (prioriza bonus)
   let novoBonus = usuario.bonus || 0;
   let novoSaldo = usuario.saldo || 0;
-  if (novoBonus >= valorEntrada) {
-    novoBonus -= valorEntrada;
-  } else {
-    const resto = valorEntrada - novoBonus;
-    novoBonus = 0;
-    novoSaldo -= resto;
-  }
+  if (novoBonus >= valorEntrada) { novoBonus -= valorEntrada; }
+  else { novoSaldo -= (valorEntrada - novoBonus); novoBonus = 0; }
 
   await supabase.from("usuarios").update({ saldo: novoSaldo, bonus: novoBonus }).eq("id", userId);
 
@@ -277,59 +287,37 @@ app.post("/criar-sala", async (req, res) => {
   const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
   const { data: sala, error } = await supabase.from("salas_usuarios").insert([{
-    criador_id: userId,
-    nome: `Sala de ${nomeUsuario}`,
-    valor_entrada: valorEntrada,
-    codigo,
-    status: "aguardando",
-    jogadores: 1,
-    max_jogadores: 50,
-    premio_acumulado: valorEntrada,
-    expires_at
+    criador_id: userId, nome: `Sala de ${nomeUsuario}`, valor_entrada: valorEntrada,
+    codigo, status: "aguardando", jogadores: 1, max_jogadores: 50,
+    premio_acumulado: valorEntrada, expires_at
   }]).select().single();
 
   if (error) return res.status(500).json({ erro: error.message });
-
   res.json({ ok: true, sala });
 });
 
 app.get("/salas-usuarios", async (req, res) => {
-  const agora = new Date().toISOString();
-  const { data } = await supabase
-    .from("salas_usuarios")
-    .select("*, usuarios(nome)")
-    .gt("expires_at", agora)
-    .order("created_at", { ascending: false });
+  const { data } = await supabase.from("salas_usuarios").select("*, usuarios(nome)").gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false });
   res.json(data || []);
 });
 
-app.post("/entrar-sala-usuario", async (req, res) => {
-  const { userId, salaId } = req.body;
-
-  const { data: sala } = await supabase.from("salas_usuarios").select("*").eq("id", salaId).single();
-  if (!sala) return res.status(404).json({ erro: "Sala não encontrada" });
-  if (sala.status === "jogando") return res.status(400).json({ erro: "Partida em andamento" });
-  if (sala.jogadores >= sala.max_jogadores) return res.status(400).json({ erro: "Sala cheia" });
-
+// =============================
+// 🎮 DESCONTAR ENTRADA
+// =============================
+app.post("/descontar-entrada", async (req, res) => {
+  const { userId, valor } = req.body;
   const { data: usuario } = await supabase.from("usuarios").select("saldo, bonus").eq("id", userId).single();
+  if (!usuario) return res.status(404).json({ erro: "Usuário não encontrado" });
+
   const saldoTotal = (usuario.saldo || 0) + (usuario.bonus || 0);
-  if (saldoTotal < sala.valor_entrada) return res.status(400).json({ erro: "Saldo insuficiente" });
+  if (saldoTotal < valor) return res.status(400).json({ erro: "Saldo insuficiente" });
 
   let novoBonus = usuario.bonus || 0;
   let novoSaldo = usuario.saldo || 0;
-  if (novoBonus >= sala.valor_entrada) {
-    novoBonus -= sala.valor_entrada;
-  } else {
-    novoSaldo -= (sala.valor_entrada - novoBonus);
-    novoBonus = 0;
-  }
+  if (novoBonus >= valor) { novoBonus -= valor; }
+  else { novoSaldo -= (valor - novoBonus); novoBonus = 0; }
 
   await supabase.from("usuarios").update({ saldo: novoSaldo, bonus: novoBonus }).eq("id", userId);
-  await supabase.from("salas_usuarios").update({
-    jogadores: sala.jogadores + 1,
-    premio_acumulado: (sala.premio_acumulado || 0) + sala.valor_entrada
-  }).eq("id", salaId);
-
   res.json({ ok: true });
 });
 
@@ -349,11 +337,7 @@ app.post("/criar-pagamento", async (req, res) => {
         notification_url: `${process.env.APP_URL}/webhook`
       }
     });
-    res.json({
-      id: pagamento.id,
-      qr_code: pagamento.point_of_interaction.transaction_data.qr_code,
-      qr_base64: pagamento.point_of_interaction.transaction_data.qr_code_base64
-    });
+    res.json({ id: pagamento.id, qr_code: pagamento.point_of_interaction.transaction_data.qr_code, qr_base64: pagamento.point_of_interaction.transaction_data.qr_code_base64 });
   } catch (err) {
     console.log("Erro PIX:", err.message);
     res.status(500).json({ erro: err.message });
@@ -379,14 +363,11 @@ app.post("/webhook", async (req, res) => {
       }
     }
     res.sendStatus(200);
-  } catch (err) {
-    console.log("Webhook erro:", err);
-    res.sendStatus(500);
-  }
+  } catch (err) { res.sendStatus(500); }
 });
 
 // =============================
-// 💸 SACAR — corrigido bug de zerar saldo
+// 💸 SACAR — nunca zera saldo
 // =============================
 app.post("/sacar", async (req, res) => {
   const { valor, userId, chave_pix } = req.body;
@@ -395,21 +376,13 @@ app.post("/sacar", async (req, res) => {
 
   const { data: usuario } = await supabase.from("usuarios").select("saldo, nome, email, id").eq("id", userId).single();
   if (!usuario) return res.status(404).json({ erro: "Usuário não encontrado" });
+  if ((usuario.saldo || 0) < valor) return res.status(400).json({ erro: "Saldo insuficiente. O bônus não pode ser sacado." });
 
-  // ✅ garante que só saca do saldo real, nunca do bonus
-  if ((usuario.saldo || 0) < valor) return res.status(400).json({ erro: "Saldo insuficiente" });
-
-  const novoSaldo = usuario.saldo - valor;
-  const { error: updateError } = await supabase.from("usuarios").update({ saldo: novoSaldo }).eq("id", userId);
-
-  if (updateError) {
-    console.log("Erro ao atualizar saldo:", updateError);
-    return res.status(500).json({ erro: "Erro ao processar saque" });
-  }
+  const { error: updateError } = await supabase.from("usuarios").update({ saldo: usuario.saldo - valor }).eq("id", userId);
+  if (updateError) return res.status(500).json({ erro: "Erro ao processar saque" });
 
   await supabase.from("historico").insert([{ user_id: userId, tipo: "Saque", valor }]);
-
-  try { await enviarEmailSaque(usuario, valor, chave_pix); } catch(e) { console.log("Email erro:", e.message); }
+  try { await enviarEmailSaque(usuario, valor, chave_pix); } catch(e) {}
 
   res.json({ ok: true, mensagem: "Pedido de saque realizado com sucesso, em até 48h o saque será realizado" });
 });
@@ -465,10 +438,6 @@ app.post("/click", (req, res) => {
   jogador.cliques++;
   jogador.historico.push(timestamp);
   if (jogador.historico.length > 10) jogador.historico.shift();
-  if (jogador.historico.length === 10) {
-    const intervalos = jogador.historico.slice(1).map((t, i) => t - jogador.historico[i]);
-    if (Math.max(...intervalos) - Math.min(...intervalos) < 10) console.log("🚨 BOT:", userId);
-  }
   res.json({ ok: true, cliques: jogador.cliques });
 });
 
@@ -476,10 +445,7 @@ app.post("/click", (req, res) => {
 // 📁 ESTÁTICOS
 // =============================
 app.use(express.static(path.join(__dirname)));
-
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
-});
+app.get("/", (req, res) => { res.sendFile(path.join(__dirname, "index.html")); });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("Servidor rodando na porta " + PORT));
