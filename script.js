@@ -665,7 +665,7 @@ function entrarSala(nome) {
 
   botsArena = sala.bots.map(b => ({
     nome: b.nome, foto: b.foto, score: 0,
-    alvo: Math.floor(Math.random() * 70) + 188 // 142 a 2
+    alvo: Math.floor(Math.random() * 70) + 258 // 142 a 328
   }));
 
   document.getElementById("arena").classList.remove("hidden");
