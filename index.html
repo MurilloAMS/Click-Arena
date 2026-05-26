@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Click Arena — Ganhe dinheiro clicando</title>
   <meta name="description" content="Compete em partidas de cliques e ganhe dinheiro real! Deposite via PIX, entre em uma sala e vença outros jogadores clicando mais rápido.">
-  <meta name="keywords" content="ganhe dinheiro clicando, jogo de cliques, click arena, ganhar dinheiro online, pix, partidas online">
+  <meta name="keywords" content="ganhe dinheiro clicando, jogo de cliques, click arena, ganhar dinheiro online, pix">
   <meta name="theme-color" content="#0B0F1A">
   <meta property="og:title" content="Click Arena — Ganhe dinheiro clicando" />
   <meta property="og:description" content="Compete em partidas de cliques e ganhe dinheiro real via PIX!" />
@@ -80,7 +80,6 @@
     <div class="menu-item" onclick="abrirPerfil(); fecharMenu()">👤 Perfil</div>
     <div class="menu-item" onclick="abrirWallet(); fecharMenu()">💰 Carteira</div>
     <div class="menu-item" onclick="abrirConvite(); fecharMenu()">🔗 Convidar Amigos</div>
-    <div class="menu-item" onclick="abrirSalasUsuarios(); fecharMenu()">🏟️ Salas de Jogadores</div>
     <div class="menu-item" onclick="abrirConfiguracoes(); fecharMenu()">⚙️ Configurações</div>
     <div class="menu-item" onclick="abrirDiretrizes(); fecharMenu()">📜 Diretrizes</div>
     <div class="menu-item" onclick="abrirReclamacoes(); fecharMenu()">🚨 Reclamações</div>
@@ -94,7 +93,7 @@
     <div class="saldo" id="saldo" onclick="abrirWallet()">R$ 0.00</div>
   </div>
 
-  <!-- TIMER -->
+  <!-- TIMER + BOTÕES -->
   <div class="timer-wrapper">
     <div class="timer-box">
       <div class="timer-glow"></div>
@@ -104,9 +103,11 @@
         <div class="timer-text" id="timer">00:30</div>
       </div>
     </div>
+    <!-- ✅ botões: chat, treino, + (criar sala), som -->
     <div class="timer-botoes">
       <button class="timer-btn" onclick="abrirChat()" title="Chat">💬</button>
       <button class="timer-btn" onclick="abrirTreino()" title="Treino">🏋️</button>
+      <button class="timer-btn timer-btn-criar" onclick="abrirCriarSalaRapido()" title="Criar Sala">＋</button>
       <button class="timer-btn" id="btnSom" onclick="toggleSom()" title="Som">🔊</button>
     </div>
   </div>
@@ -202,39 +203,29 @@
         <h2>Carteira</h2>
         <span onclick="fecharWallet()">✕</span>
       </div>
-
-      <!-- SALDO -->
       <div class="wallet-balance">
         <span>Saldo disponível</span>
         <h1 id="walletSaldo">R$ 0.00</h1>
         <div id="walletBonus" style="color:#f59e0b; font-size:13px; margin-top:4px;"></div>
       </div>
-
-      <!-- MODO SALDO -->
       <div class="wallet-modo">
-        <button id="btnModoReal" class="btn-modo ativo" onclick="selecionarModo('real')">
-          💵 Saldo real
-        </button>
-        <button id="btnModoBonus" class="btn-modo" onclick="selecionarModo('bonus')" style="display:none">
-          🎁 Usar bônus
-        </button>
+        <button id="btnModoReal" class="btn-modo ativo" onclick="selecionarModo('real')">💵 Saldo real</button>
+        <button id="btnModoBonus" class="btn-modo" onclick="selecionarModo('bonus')" style="display:none">🎁 Usar bônus</button>
       </div>
-
       <div class="wallet-actions">
         <button onclick="depositar()" class="btn-depositar">Depositar</button>
         <button onclick="sacar()" class="btn-sacar">Sacar</button>
       </div>
-
       <div id="modalDeposito" class="hidden">
         <div class="deposito-box">
           <h3>💰 Depositar via PIX</h3>
-          <input id="inputValor" type="number" placeholder="Digite o valor (mín. R$ 2)" />
+          <p style="color:#9ca3af; font-size:12px; margin:0 0 5px;">Depósito mínimo: R$ 5,00</p>
+          <input id="inputValor" type="number" min="5" placeholder="Digite o valor (mín. R$ 5)" />
           <button onclick="confirmarDeposito()">Gerar PIX</button>
           <button onclick="fecharDeposito()">Cancelar</button>
           <div id="pixContainer"></div>
         </div>
       </div>
-
       <div id="modalSaque" class="hidden">
         <div class="deposito-box">
           <h3>💸 Solicitar Saque</h3>
@@ -246,10 +237,8 @@
           <div id="saqueMsg" class="hidden"></div>
         </div>
       </div>
-
-      <button onclick="verHistorico()" class="btn-historico">📊 Histórico</button>
+      <button onclick="verHistorico()" class="btn-historico">📊 Histórico de transações</button>
       <div id="historicoArea" class="hidden"></div>
-
       <div class="wallet-card">
         <span>Conta vinculada</span>
         <p>•••• •••• •••• 4589</p>
@@ -263,18 +252,15 @@
 
 <script>
 let deferredPrompt = null;
-
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
   deferredPrompt = e;
   document.getElementById("pwaBanner").classList.remove("hidden");
 });
-
 window.addEventListener("appinstalled", () => {
   document.getElementById("pwaBanner").classList.add("hidden");
   deferredPrompt = null;
 });
-
 function instalarApp() {
   if (!deferredPrompt) return;
   deferredPrompt.prompt();
@@ -283,14 +269,8 @@ function instalarApp() {
     document.getElementById("pwaBanner").classList.add("hidden");
   });
 }
-
-function fecharPwaBanner() {
-  document.getElementById("pwaBanner").classList.add("hidden");
-}
-
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/sw.js").catch(() => {});
-}
+function fecharPwaBanner() { document.getElementById("pwaBanner").classList.add("hidden"); }
+if ("serviceWorker" in navigator) { navigator.serviceWorker.register("/sw.js").catch(() => {}); }
 </script>
 
 <script src="/script.js"></script>

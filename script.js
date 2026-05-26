@@ -16,15 +16,13 @@ window.addEventListener("DOMContentLoaded", () => {
     iniciarJogo();
   }
 
-  // ✅ intercepta botão voltar do celular
   history.pushState({ tela: "jogo" }, "");
-  window.addEventListener("popstate", (e) => {
+  window.addEventListener("popstate", () => {
     history.pushState({ tela: "jogo" }, "");
     fecharTelaAtiva();
   });
 });
 
-// fecha qualquer tela aberta ao pressionar voltar
 function fecharTelaAtiva() {
   if (!document.getElementById("telaMenu").classList.contains("hidden")) { fecharTela(); return; }
   if (!document.getElementById("chatGlobal").classList.contains("hidden")) { fecharChat(); return; }
@@ -136,9 +134,11 @@ function iniciarJogo() {
   sincronizarTimer();
   buscarSaldo();
   buscarRankingDiario();
+  buscarSalasUsuarios();
 
   setInterval(buscarSaldo, 5000);
   setInterval(buscarRankingDiario, 10000);
+  setInterval(buscarSalasUsuarios, 15000);
 
   configurarClickBtn();
   configurarClickBtnTreino();
@@ -166,20 +166,18 @@ let ultimoSaldo = 0;
 let audioCtx = null;
 let somAtivo = true;
 let bonus = 0;
-
-// ✅ modo de saldo: "real" ou "bonus"
 let modoSaldo = "real";
 
 let perfil = JSON.parse(localStorage.getItem("perfil")) || {
   nome: "Jogador", id: "user1", partidas: 0, vitorias: 0, derrotas: 0
 };
 
-let combo = 0;
 let saldo = 0;
 let tempoGlobal = 30;
 let cliques = 0;
 let tempo = 30;
 let salaAtual = null;
+let salasUsuariosData = [];
 
 // =============================
 // ⏱️ TIMER SINCRONIZADO
@@ -205,8 +203,7 @@ const nomesBot = [
   "Vanessa Pereira","Felipe Araujo","Isabela Castro","Gustavo Lima","Patricia Moura",
   "Anderson Lima","Mariana Costa","Ricardo Souza","Juliana Ferreira","Eduardo Santos",
   "Gabriela Silva","Leandro Oliveira","Amanda Rocha","Marcos Alves","Natalia Gomes",
-  "Vinicius Dias","Priscila Carvalho","Rodrigo Martins","Aline Ribeiro","Fabio Pereira",
-  "Tatiane Lima"
+  "Vinicius Dias","Priscila Carvalho","Rodrigo Martins","Aline Ribeiro","Fabio Pereira","Tatiane Lima"
 ];
 
 const fotosBot = [
@@ -230,15 +227,20 @@ const fotosBot = [
   "https://randomuser.me/api/portraits/men/29.jpg","https://randomuser.me/api/portraits/women/48.jpg",
 ];
 
+// ✅ 7 salas em ordem crescente de valor
 const salas = [
-  { nome: "Bronze",   jogadores: 0, max: 50, valor: 2,  tempo: 30, status: "aguardando", emJogo: false, bots: [] },
-  { nome: "Prata",    jogadores: 0, max: 50, valor: 5,  tempo: 30, status: "aguardando", emJogo: false, bots: [] },
-  { nome: "Ouro",     jogadores: 0, max: 50, valor: 10, tempo: 30, status: "aguardando", emJogo: false, bots: [] },
-  { nome: "Diamante", jogadores: 0, max: 50, valor: 20, tempo: 30, status: "aguardando", emJogo: false, bots: [] },
+  { nome: "Básica",            jogadores: 0, max: 50, valor: 0.5,  tempo: 30, status: "aguardando", emJogo: false, bots: [] },
+  { nome: "Essencial",         jogadores: 0, max: 50, valor: 1,    tempo: 30, status: "aguardando", emJogo: false, bots: [] },
+  { nome: "Bronze",            jogadores: 0, max: 50, valor: 2,    tempo: 30, status: "aguardando", emJogo: false, bots: [] },
+  { nome: "Prata",             jogadores: 0, max: 50, valor: 5,    tempo: 30, status: "aguardando", emJogo: false, bots: [] },
+  { nome: "Ouro",              jogadores: 0, max: 50, valor: 10,   tempo: 30, status: "aguardando", emJogo: false, bots: [] },
+  { nome: "Diamante",          jogadores: 0, max: 50, valor: 20,   tempo: 30, status: "aguardando", emJogo: false, bots: [] },
+  { nome: "Jogadores de Elite",jogadores: 0, max: 50, valor: 50,   tempo: 30, status: "aguardando", emJogo: false, bots: [] },
 ];
 
-const grupoA = [0, 1];
-const grupoB = [2, 3];
+// grupos alternados para as 7 salas
+const grupoA = [0, 1, 2, 3];
+const grupoB = [4, 5, 6];
 let grupoAtual = "A";
 let botsArena = [];
 
@@ -361,7 +363,7 @@ function cliqueValido() {
 }
 
 // =============================
-// 💬 CHAT com hora + swipe
+// 💬 CHAT
 // =============================
 let chatAberto = false;
 let chatInterval = null;
@@ -372,13 +374,10 @@ function abrirChat() {
   chatAberto = true;
   carregarMensagens();
   chatInterval = setInterval(carregarMensagens, 3000);
-
-  // swipe para fechar
   const chatBox = document.querySelector(".chat-box");
   chatBox.addEventListener("touchstart", (e) => { chatSwipeStartY = e.touches[0].clientY; }, { passive: true });
   chatBox.addEventListener("touchend", (e) => {
-    const diff = e.changedTouches[0].clientY - chatSwipeStartY;
-    if (diff > 80) fecharChat(); // swipe down de 80px fecha
+    if (e.changedTouches[0].clientY - chatSwipeStartY > 80) fecharChat();
   }, { passive: true });
 }
 
@@ -601,16 +600,30 @@ function renderRanking() {
 }
 
 // =============================
-// 🚪 SALAS
+// 🚪 SALAS DA PLATAFORMA
 // =============================
 function calcularPremio(sala) {
   return ((sala.jogadores * sala.valor) * 0.7).toFixed(2);
+}
+
+// =============================
+// 🏟️ SALAS DE USUÁRIOS — busca e renderiza junto
+// =============================
+async function buscarSalasUsuarios() {
+  try {
+    const res = await fetch(`${window.location.origin}/salas-usuarios`);
+    if (!res.ok) return;
+    salasUsuariosData = await res.json();
+    renderSalas();
+  } catch(e) {}
 }
 
 function renderSalas() {
   const div = document.getElementById("salas");
   if (!div) return;
   div.innerHTML = "";
+
+  // salas da plataforma
   salas.forEach(sala => {
     const premio = calcularPremio(sala);
     div.innerHTML += `
@@ -621,7 +634,7 @@ function renderSalas() {
         </div>
         <div class="sala-right">
           <div class="sala-premio">🏆 R$ ${premio}</div>
-          <div class="sala-entrada">Entrada: R$ ${sala.valor}</div>
+          <div class="sala-entrada">Entrada: R$ ${sala.valor.toFixed(2)}</div>
           <div class="${sala.status === 'jogando' ? 'red' : 'green'}">
             ${sala.status === 'jogando' ? '🔒 Em jogo (' + sala.tempo + 's)' : '⏳ Começa em ' + tempoGlobal.toString().padStart(2,'0') + 's'}
           </div>
@@ -629,6 +642,29 @@ function renderSalas() {
       </div>
     `;
   });
+
+  // salas de usuários — aparecem abaixo
+  if (salasUsuariosData.length > 0) {
+    div.innerHTML += `<div class="salas-titulo-usuario">👤 Salas criadas por jogadores</div>`;
+    salasUsuariosData.forEach(s => {
+      const premio = ((s.premio_acumulado || 0) * 0.7).toFixed(2);
+      const criadorNome = s.usuarios?.nome || "Jogador";
+      div.innerHTML += `
+        <div class="sala sala-usuario" onclick="entrarSalaUsuario('${s.id}', ${s.valor_entrada})">
+          <div class="sala-left">
+            <b>${s.nome}</b>
+            <span style="color:#3b82f6; font-size:11px; font-weight:bold;">👤 Por ${criadorNome}</span>
+            <span class="sala-jogadores"><span class="jog-ativo">${s.jogadores}</span>/${s.max_jogadores} jogadores</span>
+          </div>
+          <div class="sala-right">
+            <div class="sala-premio">🏆 R$ ${premio}</div>
+            <div class="sala-entrada">Entrada: R$ ${Number(s.valor_entrada).toFixed(2)}</div>
+            <div class="green">⏳ Aguardando</div>
+          </div>
+        </div>
+      `;
+    });
+  }
 }
 
 function entrarSala(nome) {
@@ -640,7 +676,6 @@ function entrarSala(nome) {
     return;
   }
 
-  // ✅ calcula saldo disponível conforme modo selecionado
   const saldoDisponivel = modoSaldo === "bonus" ? bonus : saldo;
   if (saldoDisponivel < sala.valor) {
     mostrarModalSaldoInsuficiente(sala.valor);
@@ -648,16 +683,10 @@ function entrarSala(nome) {
   }
 
   salaAtual = sala;
-
-  // desconta localmente
-  if (modoSaldo === "bonus") {
-    bonus -= sala.valor;
-  } else {
-    saldo -= sala.valor;
-  }
+  if (modoSaldo === "bonus") bonus -= sala.valor;
+  else saldo -= sala.valor;
   atualizarSaldo();
 
-  // desconta no servidor
   fetch(`${window.location.origin}/descontar-entrada`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ userId: usuarioLogado.id, valor: sala.valor, modo: modoSaldo })
@@ -665,7 +694,7 @@ function entrarSala(nome) {
 
   botsArena = sala.bots.map(b => ({
     nome: b.nome, foto: b.foto, score: 0,
-    alvo: Math.floor(Math.random() * 70) + 258 // 142 a 328
+    alvo: Math.floor(Math.random() * 70) + 142
   }));
 
   document.getElementById("arena").classList.remove("hidden");
@@ -673,19 +702,105 @@ function entrarSala(nome) {
   else iniciarArena();
 }
 
+async function entrarSalaUsuario(salaId, valorEntrada) {
+  const saldoDisponivel = modoSaldo === "bonus" ? bonus : saldo;
+  if (saldoDisponivel < valorEntrada) {
+    mostrarModalSaldoInsuficiente(valorEntrada);
+    return;
+  }
+
+  try {
+    const res = await fetch(`${window.location.origin}/entrar-sala-usuario`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: usuarioLogado.id, salaId })
+    });
+    const data = await res.json();
+    if (!res.ok) { mostrarModalAviso("❌ Erro", data.erro || "Não foi possível entrar"); return; }
+
+    if (modoSaldo === "bonus") bonus -= valorEntrada;
+    else saldo -= valorEntrada;
+    atualizarSaldo();
+
+    // usa bots genéricos para sala de usuário
+    const botsGenericos = nomesBot.slice(0, 10).map((nome, i) => ({ nome, foto: fotosBot[i], score: 0, alvo: Math.floor(Math.random() * 70) + 142 }));
+    botsArena = botsGenericos;
+    salaAtual = { jogadores: 10, valor: valorEntrada, status: "aguardando" };
+
+    document.getElementById("arena").classList.remove("hidden");
+    mostrarEspera();
+  } catch(e) {
+    mostrarModalAviso("❌ Erro", "Erro ao conectar com servidor");
+  }
+}
+
+// =============================
+// ➕ CRIAR SALA — modal rápido
+// =============================
+function abrirCriarSalaRapido() {
+  const modal = document.createElement("div");
+  modal.id = "modalCriarSala";
+  modal.className = "modal-overlay";
+  modal.innerHTML = `
+    <div class="modal-box" style="gap:15px;">
+      <div class="modal-icon">🏟️</div>
+      <h2 style="color:#3b82f6;">Criar Sala</h2>
+      <p style="color:#9ca3af; font-size:13px;">Sala ativa por 24h • Livre para todos</p>
+      <input id="valorCriarSalaRapido" type="number" min="0.5" step="0.5" placeholder="Valor de entrada (mín. R$ 0,50)" class="auth-input" />
+      <div id="criarSalaRapidoMsg" style="font-size:13px; display:none;"></div>
+      <button class="btn-primary" onclick="confirmarCriarSalaRapido()">🏟️ Criar sala</button>
+      <button class="btn-secondary" onclick="document.getElementById('modalCriarSala').remove()">Cancelar</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+async function confirmarCriarSalaRapido() {
+  const valor = Number(document.getElementById("valorCriarSalaRapido").value);
+  const msgEl = document.getElementById("criarSalaRapidoMsg");
+
+  if (!valor || valor < 0.5) {
+    msgEl.innerText = "Valor mínimo é R$ 0,50";
+    msgEl.style.color = "#ef4444";
+    msgEl.style.display = "block";
+    return;
+  }
+
+  try {
+    const res = await fetch(`${window.location.origin}/criar-sala`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: usuarioLogado.id, nomeUsuario: usuarioLogado.nome, valorEntrada: valor })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      msgEl.innerText = data.erro || "Erro ao criar sala";
+      msgEl.style.color = "#ef4444";
+      msgEl.style.display = "block";
+      return;
+    }
+    saldo -= valor;
+    atualizarSaldo();
+    document.getElementById("modalCriarSala").remove();
+    buscarSalasUsuarios();
+    mostrarModalAviso("✅ Sala criada!", `Sua sala está ativa! Todos podem entrar livremente.`);
+  } catch(e) {
+    msgEl.innerText = "Erro ao conectar";
+    msgEl.style.color = "#ef4444";
+    msgEl.style.display = "block";
+  }
+}
+
 function mostrarModalAviso(titulo, mensagem) {
   const modal = document.createElement("div");
   modal.className = "modal-overlay";
   modal.innerHTML = `
     <div class="modal-box">
-      <div class="modal-icon">🔒</div>
-      <h2>${titulo}</h2>
+      <h2 style="color:#3b82f6; font-size:18px;">${titulo}</h2>
       <p>${mensagem}</p>
       <button class="btn-secondary" onclick="this.closest('.modal-overlay').remove()">Fechar</button>
     </div>
   `;
   document.body.appendChild(modal);
-  setTimeout(() => modal.remove(), 3000);
+  setTimeout(() => { if (modal.parentNode) modal.remove(); }, 4000);
 }
 
 // =============================
@@ -721,7 +836,7 @@ function mostrarEspera() {
 }
 
 // =============================
-// 💸 MODAL SALDO
+// 💸 MODAL SALDO INSUFICIENTE
 // =============================
 function mostrarModalSaldoInsuficiente(valorNecessario) {
   const modal = document.createElement("div");
@@ -768,11 +883,9 @@ function iniciarArena() {
     }
   }, 1000);
 
-  // ✅ bots continuam clicando até o fim (tempo 30s completo)
   botInterval = setInterval(() => {
     botsArena.forEach(bot => {
-      // distribuem os cliques linearmente até o alvo em 30s
-      const incremento = bot.alvo / 60; // 2 updates por segundo = 60 updates em 30s
+      const incremento = bot.alvo / 60;
       bot.score = Math.min(bot.score + incremento + (Math.random() * 2 - 1), bot.alvo);
       if (bot.score < 0) bot.score = 0;
     });
@@ -786,7 +899,6 @@ function atualizarRankingArena() {
     { nome: nomeJogador, score: cliques, foto: usuarioLogado ? usuarioLogado.foto_url : null },
     ...botsArena.map(b => ({ nome: b.nome, score: b.score, foto: b.foto }))
   ];
-
   jogadores.sort((a, b) => b.score - a.score);
   const max = jogadores[0].score || 1;
   const div = document.getElementById("arenaRanking");
@@ -979,7 +1091,7 @@ function iniciarSalas(grupo) {
 }
 
 // =============================
-// 💰 WALLET com modo saldo/bonus
+// 💰 WALLET
 // =============================
 function abrirWallet() {
   document.getElementById("wallet").classList.remove("hidden");
@@ -989,9 +1101,7 @@ function abrirWallet() {
 function atualizarWallet() {
   document.getElementById("walletSaldo").innerText = "R$ " + saldo.toFixed(2);
   const bonusEl = document.getElementById("walletBonus");
-  if (bonusEl) bonusEl.innerText = bonus > 0 ? `🎁 Bônus disponível: R$ ${bonus.toFixed(2)}` : "";
-
-  // atualiza botões de modo
+  if (bonusEl) bonusEl.innerText = bonus > 0 ? `🎁 Bônus: R$ ${bonus.toFixed(2)}` : "";
   const btnReal = document.getElementById("btnModoReal");
   const btnBonus = document.getElementById("btnModoBonus");
   if (btnReal && btnBonus) {
@@ -1001,11 +1111,7 @@ function atualizarWallet() {
   }
 }
 
-function selecionarModo(modo) {
-  modoSaldo = modo;
-  atualizarWallet();
-}
-
+function selecionarModo(modo) { modoSaldo = modo; atualizarWallet(); }
 function fecharWallet() { document.getElementById("wallet").classList.add("hidden"); }
 function depositar() { document.getElementById("modalDeposito").classList.remove("hidden"); }
 function fecharDeposito() {
@@ -1035,24 +1141,26 @@ async function confirmarSaque() {
     });
     const data = await res.json();
     if (!res.ok) { msgEl.innerText = data.erro || "Erro"; msgEl.className = "saque-erro"; msgEl.classList.remove("hidden"); return; }
-    saldo -= valor;
-    atualizarSaldo();
+    saldo -= valor; atualizarSaldo();
     msgEl.innerText = data.mensagem;
-    msgEl.className = "saque-sucesso";
-    msgEl.classList.remove("hidden");
+    msgEl.className = "saque-sucesso"; msgEl.classList.remove("hidden");
     document.getElementById("inputSaqueValor").value = "";
     document.getElementById("inputSaqueChave").value = "";
   } catch (err) {
-    msgEl.innerText = "Erro ao conectar";
-    msgEl.className = "saque-erro";
-    msgEl.classList.remove("hidden");
+    msgEl.innerText = "Erro ao conectar"; msgEl.className = "saque-erro"; msgEl.classList.remove("hidden");
   }
 }
 
 async function confirmarDeposito() {
   const valor = document.getElementById("inputValor").value;
   const container = document.getElementById("pixContainer");
-  if (!valor || valor <= 0) { container.innerHTML = "<p style='color:red'>Digite um valor válido</p>"; return; }
+
+  // ✅ depósito mínimo R$ 5
+  if (!valor || Number(valor) < 5) {
+    container.innerHTML = "<p style='color:#ef4444'>Depósito mínimo é R$ 5,00</p>";
+    return;
+  }
+
   container.innerHTML = "<p>⏳ Gerando PIX...</p>";
   try {
     const res = await fetch(`${window.location.origin}/criar-pagamento`, {
@@ -1076,7 +1184,7 @@ async function confirmarDeposito() {
           const diff = d.saldo - saldo;
           saldo = d.saldo; bonus = d.bonus || bonus;
           atualizarSaldo();
-          container.innerHTML = `<div class="pix-sucesso">✅ Depósito de R$ ${diff.toFixed(2)} realizado!<br><span style="font-size:13px; color:#86efac;">Saldo atualizado</span></div>`;
+          container.innerHTML = `<div class="pix-sucesso">✅ Depósito de R$ ${diff.toFixed(2)} realizado!</div>`;
           setTimeout(() => fecharDeposito(), 3000);
         }
       } catch(e) {}
@@ -1132,18 +1240,13 @@ function animarDinheiro(valor) {
 async function verHistorico() {
   if (!usuarioLogado) return;
   const area = document.getElementById("historicoArea");
-
-  // ✅ toggle — se já está aberto, fecha
-  if (!area.classList.contains("hidden")) {
-    area.classList.add("hidden");
-    return;
-  }
+  if (!area.classList.contains("hidden")) { area.classList.add("hidden"); return; }
 
   const res = await fetch(`${window.location.origin}/historico/${usuarioLogado.id}`);
   const dados = await res.json();
 
   if (!dados.length) {
-    area.innerHTML = "<p style='text-align:center;'>Nenhuma transação ainda</p>";
+    area.innerHTML = "<p style='text-align:center; color:#6b7280;'>Nenhuma transação ainda</p>";
   } else {
     area.innerHTML = dados.map(item => `
       <div style="background:#111; padding:10px; margin-bottom:8px; border-radius:8px;">
@@ -1197,84 +1300,6 @@ async function gerarLinkConvite() {
 }
 
 // =============================
-// 🏟️ SALAS DE USUÁRIOS
-// =============================
-async function abrirSalasUsuarios() {
-  abrirTela(`
-    <div class="tela-box">
-      <div class="tela-header"><span class="btn-voltar" onclick="fecharTela()">←</span><h2>🏟️ Salas de Jogadores</h2></div>
-      <div class="tela-content">
-        <button class="btn-primary" style="margin-bottom:20px" onclick="abrirCriarSala()">+ Criar minha sala</button>
-        <div id="listaSalasUsuarios"><p style="text-align:center; color:#6b7280;">Carregando...</p></div>
-      </div>
-    </div>
-  `);
-  carregarSalasUsuarios();
-}
-
-async function carregarSalasUsuarios() {
-  const div = document.getElementById("listaSalasUsuarios");
-  if (!div) return;
-  try {
-    const res = await fetch(`${window.location.origin}/salas-usuarios`);
-    const salas = await res.json();
-    if (!salas.length) { div.innerHTML = "<p style='text-align:center; color:#6b7280;'>Nenhuma sala ativa</p>"; return; }
-    div.innerHTML = salas.map(s => {
-      const premio = ((s.premio_acumulado || 0) * 0.7).toFixed(2);
-      return `
-        <div class="sala">
-          <div class="sala-left">
-            <b>${s.nome}</b>
-            <span style="color:#3b82f6; font-size:11px;">👤 Sala de jogador</span>
-            <span>${s.jogadores}/${s.max_jogadores}</span>
-          </div>
-          <div class="sala-right">
-            <div class="sala-premio">🏆 R$ ${premio}</div>
-            <div class="sala-entrada">Entrada: R$ ${s.valor_entrada}</div>
-            <div class="green">Código: ${s.codigo}</div>
-          </div>
-        </div>
-      `;
-    }).join("");
-  } catch(e) { div.innerHTML = "<p style='color:red'>Erro</p>"; }
-}
-
-function abrirCriarSala() {
-  abrirTela(`
-    <div class="tela-box">
-      <div class="tela-header"><span class="btn-voltar" onclick="abrirSalasUsuarios()">←</span><h2>Criar Sala</h2></div>
-      <div class="tela-content" style="max-width:400px; margin:auto;">
-        <p style="color:#9ca3af; margin-bottom:20px;">Sala ativa por 24h.</p>
-        <label style="color:#e5e7eb; font-size:14px;">Valor de entrada (mín. R$ 1)</label>
-        <input id="valorCriarSala" type="number" min="1" placeholder="Ex: 5" class="auth-input" style="margin-top:8px; margin-bottom:20px;" />
-        <div id="criarSalaMsg" class="hidden"></div>
-        <button class="btn-primary" onclick="confirmarCriarSala()">🏟️ Criar sala</button>
-        <p style="color:#6b7280; font-size:12px; margin-top:15px; text-align:center;">Vencedor recebe 70% do prêmio total.</p>
-      </div>
-    </div>
-  `);
-}
-
-async function confirmarCriarSala() {
-  const valor = Number(document.getElementById("valorCriarSala").value);
-  const msgEl = document.getElementById("criarSalaMsg");
-  msgEl.classList.add("hidden");
-  if (!valor || valor < 1) { msgEl.innerText = "Valor mínimo é R$ 1"; msgEl.style.color = "#ef4444"; msgEl.classList.remove("hidden"); return; }
-  try {
-    const res = await fetch(`${window.location.origin}/criar-sala`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: usuarioLogado.id, nomeUsuario: usuarioLogado.nome, valorEntrada: valor })
-    });
-    const data = await res.json();
-    if (!res.ok) { msgEl.innerText = data.erro || "Erro"; msgEl.style.color = "#ef4444"; msgEl.classList.remove("hidden"); return; }
-    saldo -= valor; atualizarSaldo();
-    msgEl.innerHTML = `✅ Sala criada! Código: <strong>${data.sala.codigo}</strong>`;
-    msgEl.style.color = "#22c55e";
-    msgEl.classList.remove("hidden");
-  } catch(e) { msgEl.innerText = "Erro"; msgEl.style.color = "#ef4444"; msgEl.classList.remove("hidden"); }
-}
-
-// =============================
 // 👤 PERFIL
 // =============================
 function salvarPerfil() { localStorage.setItem("perfil", JSON.stringify(perfil)); }
@@ -1285,7 +1310,6 @@ function abrirPerfil() {
   const vitorias = perfil.vitorias || 0;
   const derrotas = perfil.derrotas || 0;
   const aproveitamento = total > 0 ? Math.round((vitorias / total) * 100) : 0;
-
   const foto = usuarioLogado && usuarioLogado.foto_url
     ? `<img src="${usuarioLogado.foto_url}" class="perfil-foto-img" onclick="trocarFotoPerfil()" />`
     : `<div class="perfil-avatar" onclick="trocarFotoPerfil()">${gerarAvatar(perfil.nome)}</div>`;
@@ -1330,11 +1354,7 @@ async function atualizarFotoPerfil(event) {
         body: JSON.stringify({ userId: usuarioLogado.id, foto_base64: e.target.result })
       });
       const data = await res.json();
-      if (data.ok) {
-        usuarioLogado.foto_url = data.foto_url;
-        localStorage.setItem("usuario", JSON.stringify(usuarioLogado));
-        abrirPerfil();
-      }
+      if (data.ok) { usuarioLogado.foto_url = data.foto_url; localStorage.setItem("usuario", JSON.stringify(usuarioLogado)); abrirPerfil(); }
     } catch(e) {}
   };
   reader.readAsDataURL(file);
@@ -1345,8 +1365,7 @@ function salvarNome() {
   if (input) {
     perfil.nome = input.value;
     if (usuarioLogado) usuarioLogado.nome = input.value;
-    salvarPerfil();
-    localStorage.setItem("usuario", JSON.stringify(usuarioLogado));
+    salvarPerfil(); localStorage.setItem("usuario", JSON.stringify(usuarioLogado));
     fecharTela();
   }
 }
@@ -1361,7 +1380,6 @@ function abrirTela(conteudoHTML) {
   const tela = document.getElementById("telaMenu");
   tela.innerHTML = conteudoHTML;
   tela.classList.remove("hidden");
-  // impede scroll da página de fundo
   document.body.style.overflow = "hidden";
 }
 
@@ -1375,9 +1393,9 @@ function abrirReclamacoes() {
     <div class="tela-box">
       <div class="tela-header"><span class="btn-voltar" onclick="fecharTela()">←</span><h2>🚨 Reclamações</h2></div>
       <div class="tela-content">
-        <p style="color:#9ca3af; margin-bottom:15px;">Sua reclamação será enviada para nossa equipe.</p>
+        <p style="color:#9ca3af; margin-bottom:15px;">Sua reclamação será enviada para nossa equipe e você receberá um retorno.</p>
         <textarea id="textoReclamacao" placeholder="Descreva sua reclamação aqui..."></textarea>
-        <div id="reclamacaoMsg" class="hidden"></div>
+        <div id="reclamacaoMsg" style="display:none; font-size:13px; margin-bottom:10px;"></div>
         <button class="btn-primary" onclick="enviarReclamacao()">Enviar reclamação</button>
       </div>
     </div>
@@ -1387,29 +1405,46 @@ function abrirReclamacoes() {
 async function enviarReclamacao() {
   const texto = document.getElementById("textoReclamacao").value.trim();
   const msgEl = document.getElementById("reclamacaoMsg");
-  msgEl.classList.add("hidden");
+  msgEl.style.display = "none";
 
-  if (!texto) { msgEl.innerText = "Escreva sua reclamação antes de enviar"; msgEl.style.color = "#ef4444"; msgEl.classList.remove("hidden"); return; }
+  if (!texto) {
+    msgEl.innerText = "Escreva sua reclamação antes de enviar";
+    msgEl.style.color = "#ef4444";
+    msgEl.style.display = "block";
+    return;
+  }
+
+  const btn = document.querySelector("#textoReclamacao + div + button") || document.querySelector(".btn-primary");
+  if (btn) { btn.innerText = "⏳ Enviando..."; btn.disabled = true; }
 
   try {
     const res = await fetch(`${window.location.origin}/reclamacao`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: usuarioLogado?.id, nomeUsuario: usuarioLogado?.nome || "Anônimo", emailUsuario: usuarioLogado?.email || "sem email", mensagem: texto })
+      body: JSON.stringify({
+        userId: usuarioLogado?.id,
+        nomeUsuario: usuarioLogado?.nome || "Anônimo",
+        emailUsuario: usuarioLogado?.email || "sem email",
+        mensagem: texto
+      })
     });
+
     if (res.ok) {
-      msgEl.innerText = "✅ Reclamação enviada com sucesso!";
+      msgEl.innerText = "✅ Reclamação enviada com sucesso! Lhe daremos um retorno em breve.";
       msgEl.style.color = "#22c55e";
-      msgEl.classList.remove("hidden");
+      msgEl.style.display = "block";
       document.getElementById("textoReclamacao").value = "";
+      if (btn) { btn.innerText = "Enviar reclamação"; btn.disabled = false; }
     } else {
       msgEl.innerText = "Erro ao enviar. Tente novamente.";
       msgEl.style.color = "#ef4444";
-      msgEl.classList.remove("hidden");
+      msgEl.style.display = "block";
+      if (btn) { btn.innerText = "Enviar reclamação"; btn.disabled = false; }
     }
   } catch(e) {
-    msgEl.innerText = "Erro de conexão";
+    msgEl.innerText = "Erro de conexão. Verifique sua internet.";
     msgEl.style.color = "#ef4444";
-    msgEl.classList.remove("hidden");
+    msgEl.style.display = "block";
+    if (btn) { btn.innerText = "Enviar reclamação"; btn.disabled = false; }
   }
 }
 
