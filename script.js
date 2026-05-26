@@ -229,12 +229,12 @@ const fotosBot = [
 
 // ✅ 7 salas em ordem crescente de valor
 const salas = [
-  { nome: "Básica",            jogadores: 0, max: 50, valor: 0.5,  tempo: 30, status: "aguardando", emJogo: false, bots: [] },
+  { nome: "Iniciante",            jogadores: 0, max: 50, valor: 0.5,  tempo: 30, status: "aguardando", emJogo: false, bots: [] },
   { nome: "Essencial",         jogadores: 0, max: 50, valor: 1,    tempo: 30, status: "aguardando", emJogo: false, bots: [] },
-  { nome: "Bronze",            jogadores: 0, max: 50, valor: 2,    tempo: 30, status: "aguardando", emJogo: false, bots: [] },
-  { nome: "Prata",             jogadores: 0, max: 50, valor: 5,    tempo: 30, status: "aguardando", emJogo: false, bots: [] },
-  { nome: "Ouro",              jogadores: 0, max: 50, valor: 10,   tempo: 30, status: "aguardando", emJogo: false, bots: [] },
-  { nome: "Diamante",          jogadores: 0, max: 50, valor: 20,   tempo: 30, status: "aguardando", emJogo: false, bots: [] },
+  { nome: "Intermediário",            jogadores: 0, max: 50, valor: 2,    tempo: 30, status: "aguardando", emJogo: false, bots: [] },
+  { nome: "Avançado",             jogadores: 0, max: 50, valor: 5,    tempo: 30, status: "aguardando", emJogo: false, bots: [] },
+  { nome: "Especialista",              jogadores: 0, max: 50, valor: 10,   tempo: 30, status: "aguardando", emJogo: false, bots: [] },
+  { nome: "Mestre",          jogadores: 0, max: 50, valor: 20,   tempo: 30, status: "aguardando", emJogo: false, bots: [] },
   { nome: "Jogadores de Elite",jogadores: 0, max: 50, valor: 50,   tempo: 30, status: "aguardando", emJogo: false, bots: [] },
 ];
 
@@ -345,7 +345,7 @@ function vibrar() { if (navigator.vibrate) navigator.vibrate(30); }
 // =============================
 // 🛡️ ANTI-BOT
 // =============================
-setInterval(() => { if (cliquesSegundo > 15) console.log("🚨"); cliquesSegundo = 0; }, 1000);
+setInterval(() => { if (cliquesSegundo > 10) console.log("🚨"); cliquesSegundo = 0; }, 1000);
 
 function cliqueValido() {
   const agora = Date.now();
@@ -538,7 +538,7 @@ async function buscarRankingDiario() {
 function renderRanking() {
   const div = document.getElementById("ranking");
   if (!div) return;
-  div.innerHTML = "<h3>🏆 Top jogadores hoje</h3>";
+  div.innerHTML = "<h3>🏆 Destaques do dia</h3>";
   const icones = ["🥇","🥈","🥉"];
   const classes = ["gold","silver","bronze"];
 
@@ -694,7 +694,7 @@ function entrarSala(nome) {
 
   botsArena = sala.bots.map(b => ({
     nome: b.nome, foto: b.foto, score: 0,
-    alvo: Math.floor(Math.random() * 70) + 142
+    alvo: Math.floor(Math.random() * 100) + 164
   }));
 
   document.getElementById("arena").classList.remove("hidden");
@@ -722,7 +722,7 @@ async function entrarSalaUsuario(salaId, valorEntrada) {
     atualizarSaldo();
 
     // usa bots genéricos para sala de usuário
-    const botsGenericos = nomesBot.slice(0, 10).map((nome, i) => ({ nome, foto: fotosBot[i], score: 0, alvo: Math.floor(Math.random() * 70) + 142 }));
+    const botsGenericos = nomesBot.slice(0, 10).map((nome, i) => ({ nome, foto: fotosBot[i], score: 0, alvo: Math.floor(Math.random() * 100) + 164 }));
     botsArena = botsGenericos;
     salaAtual = { jogadores: 10, valor: valorEntrada, status: "aguardando" };
 
@@ -781,7 +781,7 @@ async function confirmarCriarSalaRapido() {
     atualizarSaldo();
     document.getElementById("modalCriarSala").remove();
     buscarSalasUsuarios();
-    mostrarModalAviso("✅ Sala criada!", `Sua sala está ativa! Todos podem entrar livremente.`);
+    mostrarModalAviso("✅ Sala criada!", `Sua sala está ativa! Todos podem entrar.`);
   } catch(e) {
     msgEl.innerText = "Erro ao conectar";
     msgEl.style.color = "#ef4444";
