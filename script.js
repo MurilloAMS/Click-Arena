@@ -197,13 +197,13 @@ async function sincronizarTimer() {
 // 🤖 BOTS
 // =============================
 const nomesBot = [
-  "Carlos Mendes","Ana Lima","Pedro Costa","Julia Rocha","Rafael Souza",
-  "Fernanda Dias","Lucas Oliveira","Beatriz Nunes","Thiago Alves","Camila Ferreira",
-  "Bruno Santos","Larissa Gomes","Diego Martins","Leticia Carvalho","Mateus Ribeiro",
-  "Vanessa Pereira","Felipe Araujo","Isabela Castro","Gustavo Lima","Patricia Moura",
-  "Anderson Lima","Mariana Costa","Ricardo Souza","Juliana Ferreira","Eduardo Santos",
-  "Gabriela Silva","Leandro Oliveira","Amanda Rocha","Marcos Alves","Natalia Gomes",
-  "Vinicius Dias","Priscila Carvalho","Rodrigo Martins","Aline Ribeiro","Fabio Pereira","Tatiane Lima"
+  "Carlos Mendes","Aninha","Pedro Costa","Julia Rocha","Rafael Souza",
+  "Fernanda","Luquinha","Bea Nunes","Thiago Alves","Camila Ferreira",
+  "Bruno Santos","Larissa Gomes","Diego","Leticia Carvalho","Mateus Ribeiro",
+  "Vanessa Pereira","Felipe Araujo","Castro","Gustavo Lima","Patricia Moura",
+  "Anderson","Mariana Costa","Ricardo Souza","Juliana Ferreira","Neymar",
+  "Gabi","Leandro Oliveira","Amanda Rocha","Marcos Alves","Natalia Gomes",
+  "Vini Dias","Priscila Carvalho","Rodrigo","Aline Ribeiro","Pereira","Tati Lima"
 ];
 
 const fotosBot = [
