@@ -31,15 +31,12 @@ function agendarResetDiario() {
   const amanha = new Date(agora);
   amanha.setDate(amanha.getDate() + 1);
   amanha.setHours(0, 0, 0, 0);
-  const msAteAmanha = amanha - agora;
-
   setTimeout(async () => {
-    const hoje = new Date().toISOString().split("T")[0];
     const ontem = new Date(Date.now() - 86400000).toISOString().split("T")[0];
     await supabase.from("ranking_diario").delete().eq("dia", ontem);
     console.log("✅ Ranking diário resetado às 00:00");
     agendarResetDiario();
-  }, msAteAmanha);
+  }, amanha - agora);
 }
 agendarResetDiario();
 
@@ -52,7 +49,7 @@ const transporter = nodemailer.createTransport({
 });
 
 transporter.verify((error) => {
-  if (error) console.log("❌ Erro no e-mail:", error.message);
+  if (error) console.log("❌ E-mail:", error.message);
   else console.log("✅ E-mail configurado");
 });
 
@@ -62,18 +59,16 @@ async function enviarEmailSaque(usuario, valor, chave_pix) {
     from: `"Click Arena" <${process.env.EMAIL_USER}>`,
     to: process.env.EMAIL_USER,
     subject: `💸 Saque — R$ ${Number(valor).toFixed(2)}`,
-    html: `
-      <div style="font-family:Arial;max-width:500px;margin:auto;background:#0f172a;color:white;padding:30px;border-radius:12px;">
-        <h2 style="color:#22c55e;">💸 Pedido de Saque</h2>
-        <table style="width:100%;border-collapse:collapse;">
-          <tr><td style="padding:8px 0;color:#9ca3af;">👤 Usuário</td><td style="font-weight:bold;">${usuario.nome}</td></tr>
-          <tr><td style="padding:8px 0;color:#9ca3af;">📧 E-mail</td><td>${usuario.email}</td></tr>
-          <tr><td style="padding:8px 0;color:#9ca3af;">💰 Valor</td><td style="color:#22c55e;font-size:22px;font-weight:bold;">R$ ${Number(valor).toFixed(2)}</td></tr>
-          <tr><td style="padding:8px 0;color:#9ca3af;">🔑 Chave PIX</td><td style="font-weight:bold;font-size:16px;">${chave_pix}</td></tr>
-          <tr><td style="padding:8px 0;color:#9ca3af;">📅 Data/Hora</td><td>${agora}</td></tr>
-        </table>
-      </div>
-    `
+    html: `<div style="font-family:Arial;max-width:500px;margin:auto;background:#0f172a;color:white;padding:30px;border-radius:12px;">
+      <h2 style="color:#22c55e;">💸 Pedido de Saque</h2>
+      <table style="width:100%;border-collapse:collapse;">
+        <tr><td style="padding:8px 0;color:#9ca3af;">👤 Usuário</td><td style="font-weight:bold;">${usuario.nome}</td></tr>
+        <tr><td style="padding:8px 0;color:#9ca3af;">📧 E-mail</td><td>${usuario.email}</td></tr>
+        <tr><td style="padding:8px 0;color:#9ca3af;">💰 Valor</td><td style="color:#22c55e;font-size:22px;font-weight:bold;">R$ ${Number(valor).toFixed(2)}</td></tr>
+        <tr><td style="padding:8px 0;color:#9ca3af;">🔑 Chave PIX</td><td style="font-weight:bold;font-size:16px;">${chave_pix}</td></tr>
+        <tr><td style="padding:8px 0;color:#9ca3af;">📅 Data/Hora</td><td>${agora}</td></tr>
+      </table>
+    </div>`
   });
   console.log("✅ E-mail saque enviado");
 }
@@ -87,36 +82,28 @@ async function enviarEmailReclamacao(nomeUsuario, emailUsuario, mensagem) {
       <h2 style="color:#ef4444;">🚨 Nova Reclamação</h2>
       <p><strong>Usuário:</strong> ${nomeUsuario}</p>
       <p><strong>E-mail:</strong> ${emailUsuario}</p>
-      <p><strong>Mensagem:</strong></p>
       <p style="background:#1f2937;padding:15px;border-radius:8px;">${mensagem}</p>
     </div>`
   });
-  console.log("✅ E-mail reclamação enviado");
 }
 
 // =============================
-// ⭐ SISTEMA DE XP E NÍVEIS
+// ⭐ XP E NÍVEIS
 // =============================
 const NIVEIS = [
-  { nome: "Iniciante",         cor: "#9ca3af", vitorias: 5  },
-  { nome: "Essencial",         cor: "#60a5fa", vitorias: 5  },
-  { nome: "Intermediário",     cor: "#facc15", vitorias: 6  },
-  { nome: "Avançado",          cor: "#22c55e", vitorias: 8  },
-  { nome: "Especialista",      cor: "#3b82f6", vitorias: 10 },
-  { nome: "Mestre",            cor: "#991b1b", vitorias: 12 },
-  { nome: "Jogador de Elite",  cor: "#7c3aed", vitorias: 99 },
+  { nome: "Iniciante",        cor: "#9ca3af", vitorias: 5  },
+  { nome: "Essencial",        cor: "#60a5fa", vitorias: 5  },
+  { nome: "Intermediário",    cor: "#facc15", vitorias: 6  },
+  { nome: "Avançado",         cor: "#22c55e", vitorias: 8  },
+  { nome: "Especialista",     cor: "#3b82f6", vitorias: 10 },
+  { nome: "Mestre",           cor: "#991b1b", vitorias: 12 },
+  { nome: "Jogador de Elite", cor: "#7c3aed", vitorias: 99 },
 ];
-
-function calcularXP(nivel, vitoriasNivel) {
-  const nivelAtual = NIVEIS.find(n => n.nome === nivel) || NIVEIS[0];
-  const xpPorVitoria = 100 / nivelAtual.vitorias;
-  return Math.min((vitoriasNivel * xpPorVitoria), 100);
-}
 
 async function atualizarXPNivel(userId, vitorias_nivel_atual, nivel_atual) {
   const idxAtual = NIVEIS.findIndex(n => n.nome === nivel_atual);
   const nivelObj = NIVEIS[idxAtual] || NIVEIS[0];
-  let novas_vitorias = vitorias_nivel_atual + 1;
+  const novas_vitorias = vitorias_nivel_atual + 1;
   let novoNivel = nivel_atual;
   let novasVitoriasNivel = novas_vitorias;
 
@@ -125,16 +112,11 @@ async function atualizarXPNivel(userId, vitorias_nivel_atual, nivel_atual) {
     novasVitoriasNivel = 0;
   }
 
-  const novoXP = calcularXP(novoNivel === nivel_atual ? novoNivel : nivel_atual, novas_vitorias >= nivelObj.vitorias ? nivelObj.vitorias : novas_vitorias);
-  const xpGanho = 100 / nivelObj.vitorias;
+  const xpGanho = Math.round((100 / nivelObj.vitorias) * 10) / 10;
+  const novoXP = novoNivel !== nivel_atual ? 0 : Math.min(Math.round((novasVitoriasNivel / nivelObj.vitorias) * 100), 100);
 
-  await supabase.from("usuarios").update({
-    xp: novoXP,
-    nivel: novoNivel,
-    vitorias_nivel: novasVitoriasNivel
-  }).eq("id", userId);
-
-  return { novoNivel, novoXP, xpGanho: Math.round(xpGanho * 10) / 10, subiu: novoNivel !== nivel_atual };
+  await supabase.from("usuarios").update({ xp: novoXP, nivel: novoNivel, vitorias_nivel: novasVitoriasNivel }).eq("id", userId);
+  return { novoNivel, novoXP, xpGanho, subiu: novoNivel !== nivel_atual };
 }
 
 // =============================
@@ -158,13 +140,28 @@ app.post("/cadastro", async (req, res) => {
     }
   }
 
-  const avatarEscolhido = avatar || "avatar1";
   const { data: novoUser, error } = await supabase.from("usuarios")
-    .insert([{ nome, email, senha, saldo: 0, bonus: 0, partidas: 0, vitorias: 0, derrotas: 0, indicado_por, avatar: avatarEscolhido, xp: 0, nivel: "Iniciante", vitorias_nivel: 0, tentativas_fraude: 0, bloqueado: false }])
+    .insert([{
+      nome, email, senha,
+      saldo: 0, bonus: 0, partidas: 0, vitorias: 0, derrotas: 0,
+      indicado_por, avatar: avatar || "🦊",
+      xp: 0, nivel: "Iniciante", vitorias_nivel: 0,
+      tentativas_fraude: 0, bloqueado: false,
+      cliques_total: 0, ganhos_total: 0,
+      created_at: new Date().toISOString()
+    }])
     .select().single();
 
   if (error) return res.status(500).json({ erro: error.message });
-  res.json({ ok: true, usuario: { id: novoUser.id, nome: novoUser.nome, email: novoUser.email, avatar: novoUser.avatar, saldo: 0, bonus: 0, partidas: 0, vitorias: 0, derrotas: 0, xp: 0, nivel: "Iniciante", vitorias_nivel: 0, bloqueado: false } });
+
+  res.json({ ok: true, usuario: {
+    id: novoUser.id, nome: novoUser.nome, email: novoUser.email,
+    avatar: novoUser.avatar || "🦊", saldo: 0, bonus: 0,
+    partidas: 0, vitorias: 0, derrotas: 0,
+    xp: 0, nivel: "Iniciante", vitorias_nivel: 0, bloqueado: false,
+    cliques_total: 0, ganhos_total: 0,
+    created_at: novoUser.created_at
+  }});
 });
 
 // =============================
@@ -173,9 +170,21 @@ app.post("/cadastro", async (req, res) => {
 app.post("/login", async (req, res) => {
   const { email, senha } = req.body;
   if (!email || !senha) return res.status(400).json({ erro: "Preencha e-mail e senha" });
-  const { data: usuario, error } = await supabase.from("usuarios").select("*").eq("email", email).eq("senha", senha).single();
-  if (error || !usuario) return res.status(401).json({ erro: "E-mail ou senha incorretos" });
-  res.json({ ok: true, usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, avatar: usuario.avatar || "avatar1", saldo: usuario.saldo, bonus: usuario.bonus || 0, partidas: usuario.partidas, vitorias: usuario.vitorias, derrotas: usuario.derrotas || 0, xp: usuario.xp || 0, nivel: usuario.nivel || "Iniciante", vitorias_nivel: usuario.vitorias_nivel || 0, bloqueado: usuario.bloqueado || false } });
+
+  const { data: u, error } = await supabase.from("usuarios").select("*").eq("email", email).eq("senha", senha).single();
+  if (error || !u) return res.status(401).json({ erro: "E-mail ou senha incorretos" });
+
+  res.json({ ok: true, usuario: {
+    id: u.id, nome: u.nome, email: u.email,
+    avatar: u.avatar || "🦊", saldo: u.saldo, bonus: u.bonus || 0,
+    partidas: u.partidas, vitorias: u.vitorias, derrotas: u.derrotas || 0,
+    xp: u.xp || 0, nivel: u.nivel || "Iniciante", vitorias_nivel: u.vitorias_nivel || 0,
+    bloqueado: u.bloqueado || false,
+    cliques_total: u.cliques_total || 0, ganhos_total: u.ganhos_total || 0,
+    created_at: u.created_at,
+    cidade: u.cidade, sexo: u.sexo, idade: u.idade,
+    chave_pix: u.chave_pix, nome_completo: u.nome_completo
+  }});
 });
 
 // =============================
@@ -183,54 +192,50 @@ app.post("/login", async (req, res) => {
 // =============================
 app.post("/reportar-fraude", async (req, res) => {
   const { userId, cliques } = req.body;
-  const { data: usuario } = await supabase.from("usuarios").select("tentativas_fraude, nome, email").eq("id", userId).single();
-  if (!usuario) return res.status(404).json({ erro: "Não encontrado" });
-
-  const novasTentativas = (usuario.tentativas_fraude || 0) + 1;
-  const bloqueado = novasTentativas >= 3;
-
-  await supabase.from("usuarios").update({ tentativas_fraude: novasTentativas, bloqueado }).eq("id", userId);
-
-  console.log(`🚨 FRAUDE: ${usuario.nome} — ${cliques} cliques — tentativa ${novasTentativas}${bloqueado ? " — BLOQUEADO" : ""}`);
-
-  res.json({ ok: true, bloqueado, tentativas: novasTentativas });
+  const { data: u } = await supabase.from("usuarios").select("tentativas_fraude, nome").eq("id", userId).single();
+  if (!u) return res.status(404).json({ erro: "Não encontrado" });
+  const novas = (u.tentativas_fraude || 0) + 1;
+  const bloqueado = novas >= 3;
+  await supabase.from("usuarios").update({ tentativas_fraude: novas, bloqueado }).eq("id", userId);
+  console.log(`🚨 FRAUDE: ${u.nome} — ${cliques} cliques — tentativa ${novas}${bloqueado ? " — BLOQUEADO" : ""}`);
+  res.json({ ok: true, bloqueado, tentativas: novas });
 });
 
 // =============================
-// 🏆 CREDITAR VITÓRIA + XP
+// 🏆 CREDITAR VITÓRIA
 // =============================
 app.post("/creditar-vitoria", async (req, res) => {
   const { userId, valor } = req.body;
-  const { data: usuario } = await supabase.from("usuarios").select("saldo, vitorias, partidas, xp, nivel, vitorias_nivel").eq("id", userId).single();
-  if (!usuario) return res.status(404).json({ erro: "Não encontrado" });
+  const { data: u } = await supabase.from("usuarios").select("saldo, vitorias, partidas, xp, nivel, vitorias_nivel, ganhos_total").eq("id", userId).single();
+  if (!u) return res.status(404).json({ erro: "Não encontrado" });
 
   await supabase.from("usuarios").update({
-    saldo: (usuario.saldo || 0) + valor,
-    vitorias: (usuario.vitorias || 0) + 1,
-    partidas: (usuario.partidas || 0) + 1
+    saldo: (u.saldo || 0) + valor,
+    vitorias: (u.vitorias || 0) + 1,
+    partidas: (u.partidas || 0) + 1,
+    ganhos_total: (u.ganhos_total || 0) + valor
   }).eq("id", userId);
 
-  const xpResult = await atualizarXPNivel(userId, usuario.vitorias_nivel || 0, usuario.nivel || "Iniciante");
-
+  const xpResult = await atualizarXPNivel(userId, u.vitorias_nivel || 0, u.nivel || "Iniciante");
   await supabase.from("historico").insert([{ user_id: userId, tipo: "Vitória", valor, data: new Date().toISOString() }]);
 
   // ranking diário
   const hoje = new Date().toISOString().split("T")[0];
-  const { data: rankExiste } = await supabase.from("ranking_diario").select("*").eq("user_id", userId).eq("dia", hoje).single();
-  if (rankExiste) {
-    await supabase.from("ranking_diario").update({ vitorias: (rankExiste.vitorias || 0) + 1, ganho: (rankExiste.ganho || 0) + valor }).eq("id", rankExiste.id);
+  const { data: rankD } = await supabase.from("ranking_diario").select("*").eq("user_id", userId).eq("dia", hoje).single();
+  if (rankD) {
+    await supabase.from("ranking_diario").update({ vitorias: (rankD.vitorias||0)+1, ganho: (rankD.ganho||0)+valor }).eq("id", rankD.id);
   } else {
-    const { data: u } = await supabase.from("usuarios").select("nome, avatar").eq("id", userId).single();
-    await supabase.from("ranking_diario").insert([{ user_id: userId, nome: u.nome, foto_url: u.avatar, vitorias: 1, cliques: 0, ganho: valor, dia: hoje }]);
+    const { data: uInfo } = await supabase.from("usuarios").select("nome, avatar").eq("id", userId).single();
+    await supabase.from("ranking_diario").insert([{ user_id: userId, nome: uInfo.nome, foto_url: uInfo.avatar, vitorias: 1, cliques: 0, ganho: valor, dia: hoje }]);
   }
 
   // ranking global
-  const { data: globalExiste } = await supabase.from("ranking_global").select("*").eq("user_id", userId).single();
-  const { data: uAtual } = await supabase.from("usuarios").select("nome, avatar, vitorias, xp, nivel").eq("id", userId).single();
-  if (globalExiste) {
-    await supabase.from("ranking_global").update({ vitorias: (globalExiste.vitorias || 0) + 1, xp: uAtual.xp, nivel: uAtual.nivel, nome: uAtual.nome, avatar: uAtual.avatar, updated_at: new Date().toISOString() }).eq("id", globalExiste.id);
+  const { data: rankG } = await supabase.from("ranking_global").select("*").eq("user_id", userId).single();
+  const { data: uAtual } = await supabase.from("usuarios").select("nome, avatar, vitorias, xp, nivel, ganhos_total").eq("id", userId).single();
+  if (rankG) {
+    await supabase.from("ranking_global").update({ vitorias: (rankG.vitorias||0)+1, xp: uAtual.xp, nivel: uAtual.nivel, nome: uAtual.nome, avatar: uAtual.avatar, ganhos_total: uAtual.ganhos_total, updated_at: new Date().toISOString() }).eq("id", rankG.id);
   } else {
-    await supabase.from("ranking_global").insert([{ user_id: userId, nome: uAtual.nome, avatar: uAtual.avatar, vitorias: 1, cliques: 0, xp: uAtual.xp, nivel: uAtual.nivel }]);
+    await supabase.from("ranking_global").insert([{ user_id: userId, nome: uAtual.nome, avatar: uAtual.avatar, vitorias: 1, cliques: 0, xp: uAtual.xp, nivel: uAtual.nivel, ganhos_total: uAtual.ganhos_total || 0 }]);
   }
 
   res.json({ ok: true, xpGanho: xpResult.xpGanho, novoNivel: xpResult.novoNivel, subiu: xpResult.subiu });
@@ -241,26 +246,62 @@ app.post("/creditar-vitoria", async (req, res) => {
 // =============================
 app.post("/registrar-partida", async (req, res) => {
   const { userId, venceu, cliques } = req.body;
-  const { data: usuario } = await supabase.from("usuarios").select("partidas, derrotas").eq("id", userId).single();
-  if (!usuario) return res.status(404).json({ erro: "Não encontrado" });
+  const { data: u } = await supabase.from("usuarios").select("partidas, derrotas, cliques_total").eq("id", userId).single();
+  if (!u) return res.status(404).json({ erro: "Não encontrado" });
 
-  const update = { partidas: (usuario.partidas || 0) + 1 };
-  if (!venceu) update.derrotas = (usuario.derrotas || 0) + 1;
+  const update = {
+    partidas: (u.partidas || 0) + 1,
+    cliques_total: (u.cliques_total || 0) + cliques
+  };
+  if (!venceu) update.derrotas = (u.derrotas || 0) + 1;
   await supabase.from("usuarios").update(update).eq("id", userId);
 
   const hoje = new Date().toISOString().split("T")[0];
-  const { data: rankExiste } = await supabase.from("ranking_diario").select("*").eq("user_id", userId).eq("dia", hoje).single();
-  if (rankExiste) {
-    await supabase.from("ranking_diario").update({ cliques: (rankExiste.cliques || 0) + cliques }).eq("id", rankExiste.id);
+  const { data: rankD } = await supabase.from("ranking_diario").select("*").eq("user_id", userId).eq("dia", hoje).single();
+  if (rankD) {
+    await supabase.from("ranking_diario").update({ cliques: (rankD.cliques||0)+cliques }).eq("id", rankD.id);
   } else {
-    const { data: u } = await supabase.from("usuarios").select("nome, avatar").eq("id", userId).single();
-    await supabase.from("ranking_diario").insert([{ user_id: userId, nome: u.nome, foto_url: u.avatar, vitorias: 0, cliques, ganho: 0, dia: hoje }]);
+    const { data: uInfo } = await supabase.from("usuarios").select("nome, avatar").eq("id", userId).single();
+    await supabase.from("ranking_diario").insert([{ user_id: userId, nome: uInfo.nome, foto_url: uInfo.avatar, vitorias: 0, cliques, ganho: 0, dia: hoje }]);
   }
 
-  // ranking global — atualiza cliques
-  const { data: globalExiste } = await supabase.from("ranking_global").select("*").eq("user_id", userId).single();
-  if (globalExiste) {
-    await supabase.from("ranking_global").update({ cliques: (globalExiste.cliques || 0) + cliques }).eq("id", globalExiste.id);
+  const { data: rankG } = await supabase.from("ranking_global").select("*").eq("user_id", userId).single();
+  if (rankG) {
+    await supabase.from("ranking_global").update({ cliques: (rankG.cliques||0)+cliques }).eq("id", rankG.id);
+  }
+
+  res.json({ ok: true });
+});
+
+// =============================
+// 👤 PERFIL PÚBLICO
+// =============================
+app.get("/perfil-publico/:userId", async (req, res) => {
+  const { data: u } = await supabase.from("usuarios").select("id, nome, avatar, nivel, xp, vitorias, cliques_total, ganhos_total, partidas, created_at").eq("id", req.params.userId).single();
+  if (!u) return res.status(404).json({ erro: "Não encontrado" });
+  res.json(u);
+});
+
+// =============================
+// ✏️ ATUALIZAR PERFIL
+// =============================
+app.post("/atualizar-perfil", async (req, res) => {
+  const { userId, nome, cidade, sexo, idade, chave_pix, nome_completo } = req.body;
+  const update = {};
+  if (nome !== undefined) update.nome = nome;
+  if (cidade !== undefined) update.cidade = cidade;
+  if (sexo !== undefined) update.sexo = sexo;
+  if (idade !== undefined) update.idade = idade;
+  if (chave_pix !== undefined) update.chave_pix = chave_pix;
+  if (nome_completo !== undefined) update.nome_completo = nome_completo;
+
+  await supabase.from("usuarios").update(update).eq("id", userId);
+
+  // atualiza nome no ranking também
+  if (nome) {
+    const hoje = new Date().toISOString().split("T")[0];
+    await supabase.from("ranking_diario").update({ nome }).eq("user_id", userId).eq("dia", hoje);
+    await supabase.from("ranking_global").update({ nome }).eq("user_id", userId);
   }
 
   res.json({ ok: true });
@@ -272,6 +313,7 @@ app.post("/registrar-partida", async (req, res) => {
 app.post("/atualizar-avatar", async (req, res) => {
   const { userId, avatar } = req.body;
   await supabase.from("usuarios").update({ avatar }).eq("id", userId);
+  await supabase.from("ranking_global").update({ avatar }).eq("user_id", userId);
   res.json({ ok: true, avatar });
 });
 
@@ -285,35 +327,26 @@ app.post("/reclamacao", async (req, res) => {
     await enviarEmailReclamacao(nomeUsuario, emailUsuario, mensagem);
     res.json({ ok: true });
   } catch(e) {
-    console.log("❌ Erro email reclamação:", e.message);
-    res.status(500).json({ erro: "Erro ao enviar: " + e.message });
+    console.log("❌ Reclamação:", e.message);
+    res.status(500).json({ erro: "Erro ao enviar" });
   }
 });
 
 // =============================
-// 💬 CHAT
+// 💬 CHAT — limpa mensagens > 24h
 // =============================
+app.get("/chat", async (req, res) => {
+  const { data } = await supabase.from("chat_global").select("*").order("created_at", { ascending: true }).limit(100);
+  res.json(data || []);
+});
+
 app.post("/chat", async (req, res) => {
   const { userId, nome, avatar, mensagem } = req.body;
   if (!mensagem || !mensagem.trim()) return res.status(400).json({ erro: "Mensagem vazia" });
   await supabase.from("chat_global").insert([{ user_id: userId, nome, foto_url: avatar || null, mensagem: mensagem.trim() }]);
-
-  // ✅ apaga mensagens com mais de 24h
+  // apaga mensagens com mais de 24h
   const limite24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   await supabase.from("chat_global").delete().lt("created_at", limite24h);
-
-  res.json({ ok: true });
-});
-
-app.post("/chat", async (req, res) => {
-  const { userId, nome, avatar, mensagem } = req.body;
-  if (!mensagem || !mensagem.trim()) return res.status(400).json({ erro: "Mensagem vazia" });
-  await supabase.from("chat_global").insert([{ user_id: userId, nome, foto_url: avatar || null, mensagem: mensagem.trim() }]);
-  const { data: todas } = await supabase.from("chat_global").select("id").order("created_at", { ascending: true });
-  if (todas && todas.length > 100) {
-    const ids = todas.slice(0, todas.length - 100).map(m => m.id);
-    await supabase.from("chat_global").delete().in("id", ids);
-  }
   res.json({ ok: true });
 });
 
@@ -338,7 +371,7 @@ app.post("/criar-convite", async (req, res) => {
   const { userId, nomeUsuario } = req.body;
   const { data: existente } = await supabase.from("convites").select("*").eq("user_id", userId).single();
   if (existente) return res.json({ ok: true, codigo: existente.codigo, link: `${process.env.APP_URL}/?convite=${existente.codigo}` });
-  const codigo = nomeUsuario.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") + "-" + Math.random().toString(36).substr(2, 4);
+  const codigo = nomeUsuario.toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,"") + "-" + Math.random().toString(36).substr(2,4);
   const { data: novoConvite } = await supabase.from("convites").insert([{ user_id: userId, codigo }]).select().single();
   res.json({ ok: true, codigo: novoConvite.codigo, link: `${process.env.APP_URL}/?convite=${novoConvite.codigo}` });
 });
@@ -349,15 +382,15 @@ app.post("/criar-convite", async (req, res) => {
 app.post("/criar-sala", async (req, res) => {
   const { userId, nomeUsuario, valorEntrada } = req.body;
   if (!valorEntrada || valorEntrada < 0.5) return res.status(400).json({ erro: "Valor mínimo é R$ 0,50" });
-  const { data: usuario } = await supabase.from("usuarios").select("saldo, bonus").eq("id", userId).single();
-  if (!usuario) return res.status(404).json({ erro: "Não encontrado" });
-  const saldoTotal = (usuario.saldo || 0) + (usuario.bonus || 0);
+  const { data: u } = await supabase.from("usuarios").select("saldo, bonus").eq("id", userId).single();
+  if (!u) return res.status(404).json({ erro: "Não encontrado" });
+  const saldoTotal = (u.saldo||0)+(u.bonus||0);
   if (saldoTotal < valorEntrada) return res.status(400).json({ erro: "Saldo insuficiente" });
-  let novoBonus = usuario.bonus || 0; let novoSaldo = usuario.saldo || 0;
-  if (novoBonus >= valorEntrada) { novoBonus -= valorEntrada; } else { novoSaldo -= (valorEntrada - novoBonus); novoBonus = 0; }
-  await supabase.from("usuarios").update({ saldo: novoSaldo, bonus: novoBonus }).eq("id", userId);
-  const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-  const { data: sala, error } = await supabase.from("salas_usuarios").insert([{ criador_id: userId, nome: `Sala de ${nomeUsuario}`, valor_entrada: valorEntrada, codigo: Math.random().toString(36).substr(2, 6).toUpperCase(), status: "aguardando", jogadores: 1, max_jogadores: 50, premio_acumulado: valorEntrada, expires_at }]).select().single();
+  let nb = u.bonus||0, ns = u.saldo||0;
+  if (nb >= valorEntrada) { nb -= valorEntrada; } else { ns -= (valorEntrada-nb); nb=0; }
+  await supabase.from("usuarios").update({ saldo: ns, bonus: nb }).eq("id", userId);
+  const expires_at = new Date(Date.now()+24*60*60*1000).toISOString();
+  const { data: sala, error } = await supabase.from("salas_usuarios").insert([{ criador_id: userId, nome: `Sala de ${nomeUsuario}`, valor_entrada: valorEntrada, codigo: Math.random().toString(36).substr(2,6).toUpperCase(), status: "aguardando", jogadores: 1, max_jogadores: 50, premio_acumulado: valorEntrada, expires_at }]).select().single();
   if (error) return res.status(500).json({ erro: error.message });
   res.json({ ok: true, sala });
 });
@@ -372,13 +405,13 @@ app.post("/entrar-sala-usuario", async (req, res) => {
   const { data: sala } = await supabase.from("salas_usuarios").select("*").eq("id", salaId).single();
   if (!sala) return res.status(404).json({ erro: "Sala não encontrada" });
   if (sala.jogadores >= sala.max_jogadores) return res.status(400).json({ erro: "Sala cheia" });
-  const { data: usuario } = await supabase.from("usuarios").select("saldo, bonus").eq("id", userId).single();
-  const saldoTotal = (usuario.saldo || 0) + (usuario.bonus || 0);
+  const { data: u } = await supabase.from("usuarios").select("saldo, bonus").eq("id", userId).single();
+  const saldoTotal = (u.saldo||0)+(u.bonus||0);
   if (saldoTotal < sala.valor_entrada) return res.status(400).json({ erro: "Saldo insuficiente" });
-  let novoBonus = usuario.bonus || 0; let novoSaldo = usuario.saldo || 0;
-  if (novoBonus >= sala.valor_entrada) { novoBonus -= sala.valor_entrada; } else { novoSaldo -= (sala.valor_entrada - novoBonus); novoBonus = 0; }
-  await supabase.from("usuarios").update({ saldo: novoSaldo, bonus: novoBonus }).eq("id", userId);
-  await supabase.from("salas_usuarios").update({ jogadores: sala.jogadores + 1, premio_acumulado: (sala.premio_acumulado || 0) + sala.valor_entrada }).eq("id", salaId);
+  let nb = u.bonus||0, ns = u.saldo||0;
+  if (nb >= sala.valor_entrada) { nb -= sala.valor_entrada; } else { ns -= (sala.valor_entrada-nb); nb=0; }
+  await supabase.from("usuarios").update({ saldo: ns, bonus: nb }).eq("id", userId);
+  await supabase.from("salas_usuarios").update({ jogadores: sala.jogadores+1, premio_acumulado: (sala.premio_acumulado||0)+sala.valor_entrada }).eq("id", salaId);
   res.json({ ok: true });
 });
 
@@ -387,13 +420,13 @@ app.post("/entrar-sala-usuario", async (req, res) => {
 // =============================
 app.post("/descontar-entrada", async (req, res) => {
   const { userId, valor } = req.body;
-  const { data: usuario } = await supabase.from("usuarios").select("saldo, bonus").eq("id", userId).single();
-  if (!usuario) return res.status(404).json({ erro: "Não encontrado" });
-  const saldoTotal = (usuario.saldo || 0) + (usuario.bonus || 0);
+  const { data: u } = await supabase.from("usuarios").select("saldo, bonus").eq("id", userId).single();
+  if (!u) return res.status(404).json({ erro: "Não encontrado" });
+  const saldoTotal = (u.saldo||0)+(u.bonus||0);
   if (saldoTotal < valor) return res.status(400).json({ erro: "Saldo insuficiente" });
-  let novoBonus = usuario.bonus || 0; let novoSaldo = usuario.saldo || 0;
-  if (novoBonus >= valor) { novoBonus -= valor; } else { novoSaldo -= (valor - novoBonus); novoBonus = 0; }
-  await supabase.from("usuarios").update({ saldo: novoSaldo, bonus: novoBonus }).eq("id", userId);
+  let nb = u.bonus||0, ns = u.saldo||0;
+  if (nb >= valor) { nb -= valor; } else { ns -= (valor-nb); nb=0; }
+  await supabase.from("usuarios").update({ saldo: ns, bonus: nb }).eq("id", userId);
   res.json({ ok: true });
 });
 
@@ -412,19 +445,17 @@ app.post("/webhook", async (req, res) => {
   try {
     const data = req.body;
     if (data.type === "payment") {
-      const pagamento = await payment.get({ id: data.data.id });
-      if (pagamento.status === "approved") {
-        const userId = pagamento.external_reference;
-        const valor = pagamento.transaction_amount;
-        const { data: usuario } = await supabase.from("usuarios").select("saldo").eq("id", userId).single();
-        if (usuario) {
-          await supabase.from("usuarios").update({ saldo: (usuario.saldo || 0) + valor }).eq("id", userId);
-          await supabase.from("historico").insert([{ user_id: userId, tipo: "Depósito", valor, data: new Date().toISOString() }]);
+      const pag = await payment.get({ id: data.data.id });
+      if (pag.status === "approved") {
+        const { data: u } = await supabase.from("usuarios").select("saldo").eq("id", pag.external_reference).single();
+        if (u) {
+          await supabase.from("usuarios").update({ saldo: (u.saldo||0)+pag.transaction_amount }).eq("id", pag.external_reference);
+          await supabase.from("historico").insert([{ user_id: pag.external_reference, tipo: "Depósito", valor: pag.transaction_amount, data: new Date().toISOString() }]);
         }
       }
     }
     res.sendStatus(200);
-  } catch (err) { res.sendStatus(500); }
+  } catch(err) { res.sendStatus(500); }
 });
 
 // =============================
@@ -434,13 +465,13 @@ app.post("/sacar", async (req, res) => {
   const { valor, userId, chave_pix } = req.body;
   if (!chave_pix) return res.status(400).json({ erro: "Informe sua chave PIX" });
   if (!valor || valor <= 0) return res.status(400).json({ erro: "Valor inválido" });
-  const { data: usuario } = await supabase.from("usuarios").select("saldo, nome, email, id").eq("id", userId).single();
-  if (!usuario) return res.status(404).json({ erro: "Não encontrado" });
-  if ((usuario.saldo || 0) < valor) return res.status(400).json({ erro: "Saldo insuficiente. O bônus não pode ser sacado." });
-  const { error: updateError } = await supabase.from("usuarios").update({ saldo: usuario.saldo - valor }).eq("id", userId);
-  if (updateError) return res.status(500).json({ erro: "Erro ao processar saque" });
+  const { data: u } = await supabase.from("usuarios").select("saldo, nome, email, id, chave_pix, nome_completo").eq("id", userId).single();
+  if (!u) return res.status(404).json({ erro: "Não encontrado" });
+  if ((u.saldo||0) < valor) return res.status(400).json({ erro: "Saldo insuficiente. Bônus não pode ser sacado." });
+  const { error } = await supabase.from("usuarios").update({ saldo: u.saldo - valor }).eq("id", userId);
+  if (error) return res.status(500).json({ erro: "Erro ao processar saque" });
   await supabase.from("historico").insert([{ user_id: userId, tipo: "Saque", valor, data: new Date().toISOString() }]);
-  try { await enviarEmailSaque(usuario, valor, chave_pix); } catch(e) { console.log("❌ Email saque:", e.message); }
+  try { await enviarEmailSaque(u, valor, chave_pix); } catch(e) { console.log("❌ Email saque:", e.message); }
   res.json({ ok: true, mensagem: "Pedido de saque realizado! Em até 48h será processado." });
 });
 
@@ -453,8 +484,8 @@ app.get("/historico/:userId", async (req, res) => {
 });
 
 app.get("/saldo/:userId", async (req, res) => {
-  const { data: usuario } = await supabase.from("usuarios").select("saldo, bonus, xp, nivel, vitorias_nivel, bloqueado").eq("id", req.params.userId).single();
-  res.json({ saldo: usuario?.saldo || 0, bonus: usuario?.bonus || 0, xp: usuario?.xp || 0, nivel: usuario?.nivel || "Iniciante", vitorias_nivel: usuario?.vitorias_nivel || 0, bloqueado: usuario?.bloqueado || false });
+  const { data: u } = await supabase.from("usuarios").select("saldo, bonus, xp, nivel, vitorias_nivel, bloqueado, cliques_total, ganhos_total").eq("id", req.params.userId).single();
+  res.json({ saldo: u?.saldo||0, bonus: u?.bonus||0, xp: u?.xp||0, nivel: u?.nivel||"Iniciante", vitorias_nivel: u?.vitorias_nivel||0, bloqueado: u?.bloqueado||false, cliques_total: u?.cliques_total||0, ganhos_total: u?.ganhos_total||0 });
 });
 
 app.get("/ranking", async (req, res) => {
@@ -474,13 +505,11 @@ app.get("/ranking-global", async (req, res) => {
 app.post("/click", (req, res) => {
   const { userId, timestamp } = req.body;
   if (!jogadores[userId]) jogadores[userId] = { cliques: 0, ultimoClique: 0, historico: [] };
-  const jogador = jogadores[userId];
-  if (timestamp - jogador.ultimoClique < 80) return res.json({ ok: false });
-  jogador.ultimoClique = timestamp;
-  jogador.cliques++;
-  jogador.historico.push(timestamp);
-  if (jogador.historico.length > 10) jogador.historico.shift();
-  res.json({ ok: true, cliques: jogador.cliques });
+  const j = jogadores[userId];
+  if (timestamp - j.ultimoClique < 80) return res.json({ ok: false });
+  j.ultimoClique = timestamp; j.cliques++;
+  j.historico.push(timestamp); if (j.historico.length > 10) j.historico.shift();
+  res.json({ ok: true, cliques: j.cliques });
 });
 
 // =============================
