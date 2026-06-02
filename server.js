@@ -495,8 +495,16 @@ app.get("/ranking", async (req, res) => {
 });
 
 app.get("/ranking-global", async (req, res) => {
-  const { data } = await supabase.from("ranking_global").select("*").order("xp", { ascending: false }).limit(100);
-  res.json(data || []);
+  const { data } = await supabase.from("ranking_global").select("*").limit(100);
+  if (!data) return res.json([]);
+  const NIVEIS_ORDEM = ["Iniciante","Essencial","Intermediário","Avançado","Especialista","Mestre","Jogador de Elite"];
+  const ordenado = data.sort((a, b) => {
+    const iA = NIVEIS_ORDEM.indexOf(a.nivel || "Iniciante");
+    const iB = NIVEIS_ORDEM.indexOf(b.nivel || "Iniciante");
+    if (iB !== iA) return iB - iA;
+    return (b.xp || 0) - (a.xp || 0);
+  });
+  res.json(ordenado);
 });
 
 // =============================
@@ -510,6 +518,206 @@ app.post("/click", (req, res) => {
   j.ultimoClique = timestamp; j.cliques++;
   j.historico.push(timestamp); if (j.historico.length > 10) j.historico.shift();
   res.json({ ok: true, cliques: j.cliques });
+});
+
+// =============================
+// 🔐 MIDDLEWARE ADMIN
+// =============================
+function adminAuth(req, res, next) {
+  const token = req.headers["x-admin-token"] || req.query.token;
+  if (token !== process.env.ADMIN_TOKEN) {
+    return res.status(401).json({ erro: "Não autorizado" });
+  }
+  next();
+}
+
+// =============================
+// 📊 DASHBOARD GERAL
+// =============================
+app.get("/admin/dashboard", adminAuth, async (req, res) => {
+  try {
+    const hoje = new Date().toISOString().split("T")[0];
+    const agora = new Date();
+    const h1 = new Date(agora - 60*60*1000).toISOString();
+    const h24 = new Date(agora - 24*60*60*1000).toISOString();
+    const h7d = new Date(agora - 7*24*60*60*1000).toISOString();
+    const h30d = new Date(agora - 30*24*60*60*1000).toISOString();
+
+    const [
+      { count: totalUsuarios },
+      { data: depositos },
+      { data: saques },
+      { data: vitorias },
+      { data: rankHoje },
+      { data: novosHoje },
+      { data: novos7d },
+      { data: novos30d },
+    ] = await Promise.all([
+      supabase.from("usuarios").select("*", { count: "exact", head: true }),
+      supabase.from("historico").select("valor").eq("tipo", "Depósito"),
+      supabase.from("historico").select("valor").eq("tipo", "Saque"),
+      supabase.from("historico").select("valor").eq("tipo", "Vitória"),
+      supabase.from("ranking_diario").select("ganho, vitorias, cliques").eq("dia", hoje),
+      supabase.from("usuarios").select("id", { count: "exact", head: true }).gte("created_at", h24),
+      supabase.from("usuarios").select("id", { count: "exact", head: true }).gte("created_at", h7d),
+      supabase.from("usuarios").select("id", { count: "exact", head: true }).gte("created_at", h30d),
+    ]);
+
+    const totalDepositos = (depositos || []).reduce((s, d) => s + Number(d.valor), 0);
+    const totalSaques = (saques || []).reduce((s, d) => s + Number(d.valor), 0);
+    const totalVitorias = (vitorias || []).reduce((s, d) => s + Number(d.valor), 0);
+    const ganhoPlataforma = totalDepositos * 0.3;
+    const partidasHoje = (rankHoje || []).length;
+    const cliquesHoje = (rankHoje || []).reduce((s, d) => s + (d.cliques || 0), 0);
+
+    res.json({
+      totalUsuarios,
+      novosHoje: novosHoje?.count || 0,
+      novos7d: novos7d?.count || 0,
+      novos30d: novos30d?.count || 0,
+      totalDepositos,
+      totalSaques,
+      totalVitorias,
+      ganhoPlataforma,
+      saldoPlataforma: totalDepositos - totalSaques,
+      partidasHoje,
+      cliquesHoje,
+    });
+  } catch(e) {
+    res.status(500).json({ erro: e.message });
+  }
+});
+
+// =============================
+// 👥 LISTAR USUÁRIOS
+// =============================
+app.get("/admin/usuarios", adminAuth, async (req, res) => {
+  const { busca, pagina = 0 } = req.query;
+  let query = supabase.from("usuarios")
+    .select("id, nome, email, saldo, bonus, partidas, vitorias, nivel, bloqueado, tentativas_fraude, created_at, avatar, cliques_total, ganhos_total")
+    .order("created_at", { ascending: false })
+    .range(pagina * 20, pagina * 20 + 19);
+
+  if (busca) query = query.or(`nome.ilike.%${busca}%,email.ilike.%${busca}%`);
+
+  const { data, error } = await query;
+  if (error) return res.status(500).json({ erro: error.message });
+  res.json(data || []);
+});
+
+// =============================
+// 👤 DETALHES DO USUÁRIO
+// =============================
+app.get("/admin/usuario/:id", adminAuth, async (req, res) => {
+  const { data: u } = await supabase.from("usuarios").select("*").eq("id", req.params.id).single();
+  if (!u) return res.status(404).json({ erro: "Não encontrado" });
+  const { data: hist } = await supabase.from("historico").select("*").eq("user_id", req.params.id).order("data", { ascending: false }).limit(20);
+  res.json({ usuario: u, historico: hist || [] });
+});
+
+// =============================
+// 💰 AJUSTAR SALDO
+// =============================
+app.post("/admin/ajustar-saldo", adminAuth, async (req, res) => {
+  const { userId, valor, tipo, motivo } = req.body;
+  const { data: u } = await supabase.from("usuarios").select("saldo, nome").eq("id", userId).single();
+  if (!u) return res.status(404).json({ erro: "Não encontrado" });
+
+  const novoSaldo = Math.max(0, (u.saldo || 0) + Number(valor));
+  await supabase.from("usuarios").update({ saldo: novoSaldo }).eq("id", userId);
+  await supabase.from("historico").insert([{
+    user_id: userId,
+    tipo: tipo || (valor > 0 ? "Crédito Admin" : "Débito Admin"),
+    valor: Math.abs(valor),
+    data: new Date().toISOString()
+  }]);
+
+  console.log(`💰 Admin ajustou saldo de ${u.nome}: ${valor > 0 ? "+" : ""}${valor} — ${motivo || "sem motivo"}`);
+  res.json({ ok: true, novoSaldo });
+});
+
+// =============================
+// 🚫 BLOQUEAR / DESBLOQUEAR
+// =============================
+app.post("/admin/bloquear", adminAuth, async (req, res) => {
+  const { userId, bloquear } = req.body;
+  await supabase.from("usuarios").update({ bloqueado: bloquear }).eq("id", userId);
+  res.json({ ok: true });
+});
+
+// =============================
+// 🔄 RESETAR FRAUDE
+// =============================
+app.post("/admin/resetar-fraude", adminAuth, async (req, res) => {
+  const { userId } = req.body;
+  await supabase.from("usuarios").update({ tentativas_fraude: 0, bloqueado: false }).eq("id", userId);
+  res.json({ ok: true });
+});
+
+// =============================
+// 📧 ENVIAR EMAIL
+// =============================
+app.post("/admin/email", adminAuth, async (req, res) => {
+  const { para, assunto, mensagem, paraTodos } = req.body;
+
+  try {
+    if (paraTodos) {
+      const { data: usuarios } = await supabase.from("usuarios").select("email, nome");
+      const emails = (usuarios || []).map(u => u.email).filter(Boolean);
+
+      await transporter.sendMail({
+        from: `"Click Arena" <${process.env.EMAIL_USER}>`,
+        bcc: emails,
+        subject: assunto,
+        html: `<div style="font-family:Arial;max-width:600px;margin:auto;background:#0f172a;color:white;padding:30px;border-radius:12px;">
+          <h2 style="color:#3b82f6;">Click Arena</h2>
+          <p style="line-height:1.8;">${mensagem.replace(/\n/g, "<br>")}</p>
+          <hr style="border-color:#1f2937;margin:20px 0;">
+          <p style="color:#6b7280;font-size:12px;">Click Arena — Competição. Velocidade. Comunidade.</p>
+        </div>`
+      });
+
+      res.json({ ok: true, enviados: emails.length });
+    } else {
+      await transporter.sendMail({
+        from: `"Click Arena" <${process.env.EMAIL_USER}>`,
+        to: para,
+        subject: assunto,
+        html: `<div style="font-family:Arial;max-width:600px;margin:auto;background:#0f172a;color:white;padding:30px;border-radius:12px;">
+          <h2 style="color:#3b82f6;">Click Arena</h2>
+          <p style="line-height:1.8;">${mensagem.replace(/\n/g, "<br>")}</p>
+          <hr style="border-color:#1f2937;margin:20px 0;">
+          <p style="color:#6b7280;font-size:12px;">Click Arena — Competição. Velocidade. Comunidade.</p>
+        </div>`
+      });
+      res.json({ ok: true, enviados: 1 });
+    }
+  } catch(e) {
+    res.status(500).json({ erro: e.message });
+  }
+});
+
+// =============================
+// 📋 SAQUES PENDENTES
+// =============================
+app.get("/admin/saques", adminAuth, async (req, res) => {
+  const { data } = await supabase.from("historico")
+    .select("*, usuarios(nome, email, chave_pix)")
+    .eq("tipo", "Saque")
+    .order("data", { ascending: false })
+    .limit(50);
+  res.json(data || []);
+});
+
+// =============================
+// 📈 HISTÓRICO FINANCEIRO
+// =============================
+app.get("/admin/financeiro", adminAuth, async (req, res) => {
+  const { data } = await supabase.from("historico")
+    .select("tipo, valor, data, usuarios(nome)")
+    .order("data", { ascending: false })
+    .limit(100);
+  res.json(data || []);
 });
 
 // =============================

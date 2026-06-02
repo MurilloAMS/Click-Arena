@@ -32,7 +32,7 @@ const NIVEIS = [
   { nome: "Avançado",         cor: "#22c55e", vitorias: 8  },
   { nome: "Especialista",     cor: "#3b82f6", vitorias: 10 },
   { nome: "Mestre",           cor: "#991b1b", vitorias: 12 },
-  { nome: "Jogador de Elite", cor: "#8b5cf6", vitorias: 99 },
+  { nome: "Jogador de Elite", cor: "#ba0082", vitorias: 99 },
 ];
 
 function getNivelInfo(nome) { return NIVEIS.find(n => n.nome === nome) || NIVEIS[0]; }
@@ -257,6 +257,8 @@ async function carregarMensagens(){
   try{
     const res=await fetch(`${window.location.origin}/chat`);if(!res.ok)return;
     const msgs=await res.json();
+    const agora = Date.now();
+    const msgs24h = msgs.filter(m => agora - new Date(m.created_at).getTime() < 24 * 60 * 1000);
     const container=document.getElementById("chatMensagens");
     const eraEmbaixo=container.scrollHeight-container.scrollTop<=container.clientHeight+50;
     container.innerHTML="";
