@@ -520,7 +520,7 @@ app.get("/ranking-global", async (req, res) => {
   res.json({ ok: true, cliques: j.cliques });
  });
 
- // =============================
+// =============================
 // 🔐 MIDDLEWARE ADMIN
 // =============================
 function adminAuth(req, res, next) {
@@ -567,7 +567,6 @@ app.get("/admin/dashboard", adminAuth, async (req, res) => {
     const partidasHoje    = (rankHoje||[]).length;
     const cliquesHoje     = (rankHoje||[]).reduce((s,d)=>s+(d.cliques||0),0);
 
-    // saques pendentes (sem status ou pendente)
     const { count: saquesPendentes } = await supabase.from("historico")
       .select("id",{count:"exact",head:true}).eq("tipo","Saque").eq("status","pendente");
 
@@ -611,8 +610,25 @@ app.post("/admin/ajustar-saldo", adminAuth, async (req, res) => {
   if (!u) return res.status(404).json({ erro:"Não encontrado" });
   const novoSaldo = Math.max(0,(u.saldo||0)+Number(valor));
   await supabase.from("usuarios").update({ saldo: novoSaldo }).eq("id",userId);
-  await supabase.from("historico").insert([{ user_id:userId, tipo: valor>0?"Crédito Admin":"Débito Admin", valor:Math.abs(valor), data:new Date().toISOString(), status:"confirmado" }]);
-  console.log(`💰 Admin ajustou saldo de ${u.nome}: ${valor>0?"+":""}${valor} — ${motivo||"sem motivo"}`);
+  await supabase.from("historico").insert([{
+    user_id:userId,
+    tipo: valor>0?"Crédito Admin":"Débito Admin",
+    valor:Math.abs(valor),
+    data:new Date().toISOString(),
+    status:"confirmado"
+  }]);
+
+  // envia notificação ao usuário
+  const msg = valor > 0
+    ? `Seu saldo foi creditado no valor de R$ ${Number(valor).toFixed(2)}.${motivo ? " Motivo: "+motivo : ""}`
+    : `Foi realizado um débito de R$ ${Math.abs(valor).toFixed(2)} em sua conta.${motivo ? " Motivo: "+motivo : ""}`;
+
+  await supabase.from("notificacoes").insert([{
+    user_id: userId,
+    titulo: valor > 0 ? "💰 Saldo creditado" : "💸 Débito realizado",
+    mensagem: msg
+  }]);
+
   res.json({ ok:true, novoSaldo });
 });
 
@@ -620,8 +636,24 @@ app.post("/admin/ajustar-saldo", adminAuth, async (req, res) => {
 // 🚫 BLOQUEAR / DESBLOQUEAR
 // =============================
 app.post("/admin/bloquear", adminAuth, async (req, res) => {
-  const { userId, bloquear } = req.body;
+  const { userId, bloquear, motivo } = req.body;
   await supabase.from("usuarios").update({ bloqueado: bloquear }).eq("id",userId);
+
+  // notifica usuário
+  if (bloquear) {
+    await supabase.from("notificacoes").insert([{
+      user_id: userId,
+      titulo: "🚫 Conta bloqueada",
+      mensagem: `Sua conta foi bloqueada pela plataforma.${motivo ? " Motivo: "+motivo : " Entre em contato com o suporte."}`
+    }]);
+  } else {
+    await supabase.from("notificacoes").insert([{
+      user_id: userId,
+      titulo: "✅ Conta desbloqueada",
+      mensagem: "Sua conta foi desbloqueada. Você já pode participar das partidas normalmente."
+    }]);
+  }
+
   res.json({ ok:true });
 });
 
@@ -632,7 +664,7 @@ app.post("/admin/resetar-fraude", adminAuth, async (req, res) => {
 });
 
 // =============================
-// 💸 SAQUES — com status
+// 💸 SAQUES — com status e motivo
 // =============================
 app.get("/admin/saques", adminAuth, async (req, res) => {
   const { status } = req.query;
@@ -647,19 +679,37 @@ app.get("/admin/saques", adminAuth, async (req, res) => {
 });
 
 app.post("/admin/saque-status", adminAuth, async (req, res) => {
-  const { id, status } = req.body; // confirmado | recusado
+  const { id, status, motivo } = req.body;
+
+  // busca dados do saque antes de atualizar
+  const { data: hist } = await supabase.from("historico")
+    .select("user_id, valor, usuarios(nome)")
+    .eq("id",id).single();
+
   const update = { status };
   if (status === "confirmado") update.processado_em = new Date().toISOString();
   await supabase.from("historico").update(update).eq("id",id);
 
-  // se recusado, devolve o saldo
-  if (status === "recusado") {
-    const { data: hist } = await supabase.from("historico").select("user_id,valor").eq("id",id).single();
-    if (hist) {
-      const { data: u } = await supabase.from("usuarios").select("saldo").eq("id",hist.user_id).single();
-      if (u) await supabase.from("usuarios").update({ saldo:(u.saldo||0)+Number(hist.valor) }).eq("id",hist.user_id);
+  // ✅ saque recusado NÃO devolve saldo
+  // envia notificação ao usuário com motivo
+  if (hist) {
+    const valor = Number(hist.valor).toFixed(2);
+    if (status === "confirmado") {
+      await supabase.from("notificacoes").insert([{
+        user_id: hist.user_id,
+        titulo: "✅ Saque confirmado!",
+        mensagem: `Seu saque de R$ ${valor} foi processado com sucesso! O valor será debitado na sua chave PIX em breve.`
+      }]);
+    } else if (status === "recusado") {
+      const motivoFinal = motivo || "Comportamento suspeito detectado pela plataforma.";
+      await supabase.from("notificacoes").insert([{
+        user_id: hist.user_id,
+        titulo: "❌ Saque recusado",
+        mensagem: `Seu saque de R$ ${valor} foi recusado. Motivo: ${motivoFinal} Em caso de dúvidas, entre em contato pelo canal de reclamações.`
+      }]);
     }
   }
+
   res.json({ ok:true });
 });
 
@@ -680,7 +730,7 @@ app.get("/admin/depositos", adminAuth, async (req, res) => {
 // =============================
 app.post("/admin/email", adminAuth, async (req, res) => {
   const { para, assunto, mensagem, paraTodos } = req.body;
-  const remetente = `"Click Arena" <reclameaqui.click@gmail.com>`;
+  const remetente = `"Click Arena" <${process.env.EMAIL_USER}>`;
   try {
     if (paraTodos) {
       const { data: usuarios } = await supabase.from("usuarios").select("email,nome");
@@ -706,7 +756,6 @@ function emailHtml(mensagem) {
   </div>`;
 }
 
-// lista de emails para busca
 app.get("/admin/emails-usuarios", adminAuth, async (req, res) => {
   const { busca } = req.query;
   let query = supabase.from("usuarios").select("id,nome,email").order("nome");
@@ -719,7 +768,15 @@ app.get("/admin/emails-usuarios", adminAuth, async (req, res) => {
 // 🔔 NOTIFICAÇÕES
 // =============================
 app.post("/admin/notificacao", adminAuth, async (req, res) => {
-  const { userId, titulo, mensagem } = req.body;
+  const { userId, titulo, mensagem, paraTodos } = req.body;
+
+  if (paraTodos) {
+    const { data: usuarios } = await supabase.from("usuarios").select("id");
+    const inserts = (usuarios||[]).map(u => ({ user_id: u.id, titulo, mensagem }));
+    if (inserts.length > 0) await supabase.from("notificacoes").insert(inserts);
+    return res.json({ ok:true, enviados: inserts.length });
+  }
+
   if (!userId||!titulo||!mensagem) return res.status(400).json({ erro:"Preencha todos os campos" });
   await supabase.from("notificacoes").insert([{ user_id:userId, titulo, mensagem }]);
   res.json({ ok:true });
@@ -729,7 +786,7 @@ app.post("/admin/notificacao", adminAuth, async (req, res) => {
 app.get("/notificacoes/:userId", async (req, res) => {
   const { data } = await supabase.from("notificacoes")
     .select("*").eq("user_id",req.params.userId)
-    .order("created_at",{ascending:false}).limit(20);
+    .order("created_at",{ascending:false}).limit(30);
   res.json(data||[]);
 });
 
@@ -740,7 +797,7 @@ app.post("/notificacoes/lida", async (req, res) => {
   res.json({ ok:true });
 });
 
-// count de não lidas
+// count não lidas
 app.get("/notificacoes-count/:userId", async (req, res) => {
   const { count } = await supabase.from("notificacoes")
     .select("id",{count:"exact",head:true})

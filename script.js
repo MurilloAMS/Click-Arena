@@ -115,6 +115,131 @@ function iniciarJogo() {
   setInterval(buscarSaldo, 5000); setInterval(buscarRankingDiario, 10000); setInterval(buscarSalasUsuarios, 15000);
   configurarClickBtn(); configurarClickBtnTreino();
   iniciarNotificacoesChat();
+
+  // =============================
+// 🔔 NOTIFICAÇÕES DO JOGADOR
+// =============================
+// Adicionar essas funções no script.js
+// e chamar iniciarNotificacoes() dentro de iniciarJogo()
+
+let notificacoesInterval = null;
+let ultimaNotifCount = 0;
+
+function iniciarNotificacoes() {
+  buscarNotificacoes();
+  notificacoesInterval = setInterval(buscarNotificacoes, 15000);
+}
+
+async function buscarNotificacoes() {
+  if (!usuarioLogado) return;
+  try {
+    const res = await fetch(`${window.location.origin}/notificacoes-count/${usuarioLogado.id}`);
+    const data = await res.json();
+    const count = data.count || 0;
+
+    const ponto = document.getElementById("notifPonto");
+    if (ponto) {
+      if (count > 0) {
+        ponto.style.display = "block";
+        // toca som se chegou nova notificação
+        if (count > ultimaNotifCount && ultimaNotifCount >= 0) {
+          somNotificacao();
+        }
+      } else {
+        ponto.style.display = "none";
+      }
+    }
+    ultimaNotifCount = count;
+  } catch(e) {}
+}
+
+async function abrirNotificacoes() {
+  document.getElementById("painelNotificacoes").classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+  await carregarNotificacoes();
+}
+
+function fecharNotificacoes() {
+  document.getElementById("painelNotificacoes").classList.add("hidden");
+  document.body.style.overflow = "";
+}
+
+async function carregarNotificacoes() {
+  if (!usuarioLogado) return;
+  const lista = document.getElementById("listaNotificacoes");
+  lista.innerHTML = `<p style="text-align:center;color:#6b7280;padding:20px;">Carregando...</p>`;
+
+  try {
+    const res = await fetch(`${window.location.origin}/notificacoes/${usuarioLogado.id}`);
+    const notifs = await res.json();
+
+    if (!notifs.length) {
+      lista.innerHTML = `
+        <div style="text-align:center;padding:40px 20px;">
+          <div style="font-size:48px;margin-bottom:10px;">🔕</div>
+          <p style="color:#6b7280;">Nenhuma notificação ainda</p>
+        </div>`;
+      return;
+    }
+
+    lista.innerHTML = notifs.map(n => `
+      <div class="notif-item ${n.lida ? 'lida' : 'nao-lida'}" onclick="marcarLida('${n.id}',this)">
+        <div class="notif-plataforma">
+          🎮 Click Arena
+          ${!n.lida ? '<div class="notif-dot-nao-lida"></div>' : ''}
+        </div>
+        <div class="notif-titulo">${n.titulo}</div>
+        <div class="notif-mensagem">${n.mensagem}</div>
+        <div class="notif-data">${new Date(n.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}</div>
+      </div>
+    `).join("");
+
+    // atualiza ponto após abrir
+    buscarNotificacoes();
+  } catch(e) {
+    lista.innerHTML = `<p style="text-align:center;color:#ef4444;padding:20px;">Erro ao carregar</p>`;
+  }
+}
+
+async function marcarLida(id, el) {
+  try {
+    await fetch(`${window.location.origin}/notificacoes/lida`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id })
+    });
+    el.classList.remove("nao-lida");
+    el.classList.add("lida");
+    const dot = el.querySelector(".notif-dot-nao-lida");
+    if (dot) dot.remove();
+    buscarNotificacoes();
+  } catch(e) {}
+}
+
+async function marcarTodasLidas() {
+  if (!usuarioLogado) return;
+  const items = document.querySelectorAll(".notif-item.nao-lida");
+  // busca ids das não lidas
+  try {
+    const res = await fetch(`${window.location.origin}/notificacoes/${usuarioLogado.id}`);
+    const notifs = await res.json();
+    const naoLidas = notifs.filter(n => !n.lida);
+    for (const n of naoLidas) {
+      await fetch(`${window.location.origin}/notificacoes/lida`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: n.id })
+      });
+    }
+    await carregarNotificacoes();
+    buscarNotificacoes();
+  } catch(e) {}
+}
+
+// =============================
+// ADICIONAR em iniciarJogo():
+// iniciarNotificacoes();
+// =============================
 }
 
 // =============================
