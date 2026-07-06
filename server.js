@@ -821,5 +821,10 @@ app.get("/admin/financeiro", adminAuth, async (req, res) => {
 app.use(express.static(path.join(__dirname)));
 app.get("/", (req, res) => { res.sendFile(path.join(__dirname, "index.html")); });
 
+// Ping para manter o servidor ativo (a cada 14 minutos)
+setInterval(() => {
+  fetch('${process.env.APP_URL}/tempo=global').catch(()=>{});
+}, 14 * 60 * 1000);
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("✅ Servidor rodando na porta " + PORT));

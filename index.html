@@ -350,10 +350,10 @@
 setTimeout(() => {
   const splash = document.getElementById("splashScreen");
   if (!splash) return;
-  splash.style.transition = "opacity 0.6s ease";
+  splash.style.transition = "opacity 0.3s ease";
   splash.style.opacity = "0";
   setTimeout(() => splash.remove(), 600);
-}, 2800);
+}, 1500);
 
 // PWA
 let deferredPrompt = null;
